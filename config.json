@@ -1,0 +1,65 @@
+{
+  "pipeline": {
+    "scrape_hour": 3,
+    "process_hour": 4,
+    "build_hour": 5,
+    "restart_hour": 6
+  },
+  "scraper": {
+    "sources": [
+      {
+        "name": "gta5mods_vehicles",
+        "url": "https://www.gta5-mods.com/vehicles?sort=date",
+        "type": "vehicles",
+        "free_only": true,
+        "max_per_run": 10,
+        "require_dlc_rpf": true
+      }
+    ],
+    "download_dir": "downloads",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) RageMP-Asset-Pipeline/1.0",
+    "delay_between_requests_seconds": 5,
+    "respect_robots_txt": true,
+    "skip_premium": true
+  },
+  "extraction": {
+    "input_dir": "downloads",
+    "output_dir": "assets",
+    "supported_extensions": [".yft", ".ytd", ".ydr", ".rpf", ".meta", ".xml"]
+  },
+  "external_tools": {
+    "blender_path": "C:/Program Files/Blender Foundation/Blender 4.0/blender.exe",
+    "gimp_path": "C:/Program Files/GIMP 2/bin/gimp-2.10.exe",
+    "paintnet_path": "C:/Program Files/paint.net/paintdotnet.exe",
+    "openiv_path": "C:/Program Files/OpenIV/OpenIV.exe",
+    "codewalker_path": "C:/Tools/CodeWalker/CodeWalker.exe"
+  },
+  "converter": {
+    "codewalker_path": "C:/Tools/CodeWalker",
+    "openiv_path": "C:/Program Files/OpenIV",
+    "input_dir": "assets/processed_models",
+    "output_dir": "assets/gta_ready"
+  },
+  "resource_builder": {
+    "source_dir": "assets/gta_ready",
+    "target_dir": "client_packages",
+    "categories": ["vehicles"]
+  },
+  "server": {
+    "ragemp_server_dir": "",
+    "auto_restart": false,
+    "restart_command": ""
+  },
+  "limits": {
+    "max_vehicles": 500
+  },
+  "preview": {
+    "port": 3000,
+    "host": "127.0.0.1"
+  },
+  "logging": {
+    "level": "INFO",
+    "log_dir": "logs",
+    "max_log_files": 30
+  }
+}

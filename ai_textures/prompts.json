@@ -1,0 +1,76 @@
+{
+  "vehicle_skins": [
+    {
+      "name": "matte_black",
+      "prompt": "seamless matte black car paint texture, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "carbon_fiber",
+      "prompt": "seamless carbon fiber weave texture, dark glossy, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "military_camo",
+      "prompt": "seamless military camouflage pattern texture, olive green brown, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "rusty_metal",
+      "prompt": "seamless rusty corroded metal texture, orange brown rust, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "police_livery",
+      "prompt": "seamless white and black police car paint texture with subtle stripe, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality, badge, letters"
+    },
+    {
+      "name": "taxi_yellow",
+      "prompt": "seamless bright yellow taxi cab paint texture, glossy, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "chrome_silver",
+      "prompt": "seamless chrome silver metallic car paint texture, reflective, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "racing_stripes_red",
+      "prompt": "seamless red racing car paint texture, glossy, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "desert_camo",
+      "prompt": "seamless desert camouflage pattern texture, tan sand beige, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "brushed_aluminum",
+      "prompt": "seamless brushed aluminum metal texture, silver grey, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    }
+  ],
+  "building_textures": [
+    {
+      "name": "concrete_wall",
+      "prompt": "seamless concrete wall texture, grey weathered, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "brick_wall",
+      "prompt": "seamless red brick wall texture, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "wood_floor",
+      "prompt": "seamless hardwood floor texture, oak brown, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    },
+    {
+      "name": "marble_tile",
+      "prompt": "seamless white marble tile texture, veined, high resolution, photorealistic, 4k, tileable",
+      "negative_prompt": "text, watermark, logo, blurry, low quality"
+    }
+  ]
+}

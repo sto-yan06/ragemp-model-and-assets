@@ -1,0 +1,1986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RageMP Asset Preview</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f0f13;
+            --surface: #1a1a24;
+            --surface-2: #22222e;
+            --border: #2a2a3a;
+            --text: #e4e4ef;
+            --text-dim: #8888a0;
+            --accent: #6c5ce7;
+            --accent-glow: #6c5ce740;
+            --green: #00b894;
+            --orange: #fdcb6e;
+            --red: #e17055;
+            --blue: #74b9ff;
+            --radius: 12px;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        /* ── Header ── */
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(12px);
+        }
+
+        .header-left { display: flex; align-items: center; gap: 16px; }
+
+        .header h1 {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-badge {
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .header-right { display: flex; align-items: center; gap: 12px; }
+        .last-updated { font-size: 12px; color: var(--text-dim); }
+
+        .btn-refresh {
+            background: var(--surface-2);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+        }
+        .btn-refresh:hover { background: var(--accent); border-color: var(--accent); }
+
+        /* ── Stats Bar ── */
+        .stats-bar { display: flex; gap: 16px; padding: 20px 32px; overflow-x: auto; }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 16px 24px;
+            min-width: 160px;
+            flex-shrink: 0;
+        }
+
+        .stat-card .stat-value { font-size: 28px; font-weight: 800; color: var(--accent); }
+        .stat-card .stat-label {
+            font-size: 12px; color: var(--text-dim);
+            text-transform: uppercase; letter-spacing: 1px; margin-top: 4px;
+        }
+        .stat-card.green .stat-value { color: var(--green); }
+        .stat-card.orange .stat-value { color: var(--orange); }
+        .stat-card.blue .stat-value { color: var(--blue); }
+
+        /* ── Filter Bar ── */
+        .filter-bar {
+            display: flex; gap: 8px; padding: 0 32px 16px;
+            flex-wrap: wrap; align-items: center;
+        }
+
+        .filter-btn {
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text-dim); padding: 8px 18px;
+            border-radius: 20px; cursor: pointer;
+            font-size: 13px; transition: all 0.2s;
+        }
+        .filter-btn:hover { border-color: var(--accent); color: var(--text); }
+        .filter-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+        .search-box {
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text); padding: 8px 16px;
+            border-radius: 20px; font-size: 13px;
+            width: 240px; outline: none;
+            transition: border-color 0.2s; margin-left: auto;
+        }
+        .search-box:focus { border-color: var(--accent); }
+        .search-box::placeholder { color: var(--text-dim); }
+
+        .view-toggle {
+            display: flex; gap: 4px;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; padding: 2px;
+        }
+        .view-toggle button {
+            background: none; border: none; color: var(--text-dim);
+            padding: 6px 10px; border-radius: 6px; cursor: pointer;
+            font-size: 14px; transition: all 0.2s;
+        }
+        .view-toggle button.active { background: var(--accent); color: white; }
+
+        /* ── Asset Grid ── */
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px; padding: 0 32px 32px;
+        }
+        .asset-grid.list-view { grid-template-columns: 1fr; }
+
+        .asset-card {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: var(--radius); overflow: hidden;
+            transition: all 0.2s; cursor: pointer;
+        }
+        .asset-card:hover {
+            border-color: var(--accent); transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(108, 92, 231, 0.15);
+        }
+
+        .asset-thumb {
+            width: 100%; height: 200px; object-fit: cover;
+            background: var(--surface-2); display: block;
+        }
+        .asset-thumb-placeholder {
+            width: 100%; height: 200px; background: var(--surface-2);
+            display: flex; align-items: center; justify-content: center;
+            color: var(--text-dim); font-size: 48px;
+        }
+
+        .asset-body { padding: 16px; }
+        .asset-name {
+            font-size: 14px; font-weight: 600; margin-bottom: 8px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .asset-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+        .asset-tag {
+            font-size: 11px; padding: 3px 8px; border-radius: 4px;
+            background: var(--surface-2); color: var(--text-dim);
+        }
+        .asset-tag.category {
+            background: var(--accent-glow); color: var(--accent); font-weight: 600;
+        }
+        .asset-tag.preview-ready {
+            background: rgba(0,184,148,0.15); color: var(--green); font-weight: 600;
+        }
+        .asset-details {
+            display: flex; justify-content: space-between;
+            align-items: center; font-size: 12px; color: var(--text-dim);
+        }
+        .asset-size { font-weight: 600; color: var(--green); }
+        .asset-author { color: var(--blue); }
+
+        .list-view .asset-card { display: flex; flex-direction: row; }
+        .list-view .asset-thumb,
+        .list-view .asset-thumb-placeholder { width: 120px; height: 90px; min-width: 120px; }
+        .list-view .asset-body { flex: 1; display: flex; align-items: center; gap: 24px; }
+        .list-view .asset-name { min-width: 200px; margin-bottom: 0; }
+        .list-view .asset-meta { margin-bottom: 0; }
+        .list-view .asset-details { margin-left: auto; gap: 16px; }
+
+        /* ── Modal ── */
+        .modal-overlay {
+            display: none; position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); z-index: 1000;
+            align-items: center; justify-content: center; padding: 24px;
+        }
+        .modal-overlay.visible { display: flex; }
+
+        .modal {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; max-width: 900px; width: 100%;
+            max-height: 92vh; overflow-y: auto; position: relative;
+        }
+
+        .modal-close {
+            position: sticky; top: 12px; float: right; margin-right: 12px;
+            background: var(--surface-2); border: 1px solid var(--border);
+            color: var(--text); width: 36px; height: 36px;
+            border-radius: 50%; cursor: pointer; font-size: 18px;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 10;
+        }
+        .modal-close:hover { background: var(--red); border-color: var(--red); }
+
+        /* ── Modal Tabs ── */
+        .modal-tabs {
+            display: flex; gap: 0; border-bottom: 1px solid var(--border);
+            background: var(--surface-2); padding: 0 16px;
+            position: sticky; top: 0; z-index: 5;
+        }
+        .modal-tab {
+            padding: 12px 20px; cursor: pointer; font-size: 13px;
+            font-weight: 600; color: var(--text-dim);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s; background: none; border-top: none;
+            border-left: none; border-right: none;
+        }
+        .modal-tab:hover { color: var(--text); }
+        .modal-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .modal-tab .tab-badge {
+            background: var(--accent-glow); color: var(--accent);
+            padding: 1px 6px; border-radius: 10px; font-size: 10px;
+            margin-left: 6px; font-weight: 700;
+        }
+
+        .modal-tab-content { display: none; min-height: 200px; }
+        .modal-tab-content.active { display: block; }
+
+        /* ── Screenshots Gallery ── */
+        .gallery-container {
+            position: relative; width: 100%; background: #000; overflow: hidden;
+        }
+        .gallery-main {
+            width: 100%; max-height: 450px; object-fit: contain;
+            display: block; margin: 0 auto;
+        }
+        .gallery-nav {
+            position: absolute; top: 50%; transform: translateY(-50%);
+            background: rgba(0,0,0,0.6); color: white; border: none;
+            width: 40px; height: 40px; border-radius: 50%; cursor: pointer;
+            font-size: 20px; display: flex; align-items: center;
+            justify-content: center; transition: background 0.2s; z-index: 2;
+        }
+        .gallery-nav:hover { background: var(--accent); }
+        .gallery-nav.prev { left: 10px; }
+        .gallery-nav.next { right: 10px; }
+        .gallery-dots {
+            display: flex; justify-content: center; gap: 6px; padding: 8px;
+            background: rgba(0,0,0,0.5);
+            position: absolute; bottom: 0; left: 0; right: 0;
+        }
+        .gallery-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: rgba(255,255,255,0.4); cursor: pointer;
+            transition: background 0.2s; border: none;
+        }
+        .gallery-dot.active { background: var(--accent); }
+        .gallery-thumbstrip {
+            display: flex; gap: 4px; padding: 8px;
+            background: var(--surface-2); overflow-x: auto;
+        }
+        .gallery-thumbstrip img {
+            width: 80px; height: 54px; object-fit: cover;
+            border-radius: 4px; cursor: pointer; opacity: 0.6;
+            transition: all 0.2s; border: 2px solid transparent;
+        }
+        .gallery-thumbstrip img.active { opacity: 1; border-color: var(--accent); }
+        .gallery-thumbstrip img:hover { opacity: 1; }
+        .gallery-counter {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(0,0,0,0.6); color: white;
+            padding: 4px 10px; border-radius: 12px; font-size: 12px; z-index: 2;
+        }
+
+        /* ── Contents Tab ── */
+        .file-tree { padding: 16px; }
+        .file-tree-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 12px; border-radius: 6px;
+            font-size: 13px; transition: background 0.15s;
+        }
+        .file-tree-item:hover { background: var(--surface-2); }
+        .file-tree-icon { font-size: 16px; width: 20px; text-align: center; }
+        .file-tree-name { flex: 1; word-break: break-all; }
+        .file-tree-size { color: var(--text-dim); font-size: 12px; white-space: nowrap; }
+        .file-tree-ext {
+            font-size: 10px; padding: 2px 6px; border-radius: 4px;
+            background: var(--surface-2); color: var(--text-dim);
+            text-transform: uppercase; font-weight: 700;
+        }
+        .file-tree-ext.gta { background: rgba(253,203,110,0.15); color: var(--orange); }
+        .file-tree-ext.model { background: rgba(108,92,231,0.15); color: var(--accent); }
+        .file-tree-ext.image { background: rgba(0,184,148,0.15); color: var(--green); }
+        .file-tree-ext.rpf { background: rgba(225,112,85,0.15); color: var(--red); }
+
+        .extract-prompt {
+            text-align: center; padding: 40px 24px; color: var(--text-dim);
+        }
+        .extract-prompt p { margin: 8px 0; font-size: 14px; }
+
+        .btn-action {
+            background: var(--accent); border: none; color: white;
+            padding: 10px 24px; border-radius: 8px; cursor: pointer;
+            font-size: 14px; font-weight: 600; transition: all 0.2s;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-action:hover { filter: brightness(1.15); transform: translateY(-1px); }
+        .btn-action:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-action.danger { background: var(--red); }
+        .btn-action.success { background: var(--green); }
+
+        /* ── Textures Tab ── */
+        .textures-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 12px; padding: 16px;
+        }
+        .texture-card {
+            background: var(--surface-2); border: 1px solid var(--border);
+            border-radius: 8px; overflow: hidden; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .texture-card:hover { border-color: var(--accent); }
+        .texture-card img {
+            width: 100%; height: 160px; object-fit: cover; display: block;
+        }
+        .texture-card .tex-info {
+            padding: 8px 10px; font-size: 11px; color: var(--text-dim);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .texture-card .tex-name {
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            max-width: 140px;
+        }
+
+        .texture-actions {
+            padding: 12px 16px; display: flex; gap: 10px;
+            border-bottom: 1px solid var(--border); align-items: center;
+        }
+        .texture-actions label {
+            font-size: 13px; color: var(--text-dim);
+            display: flex; align-items: center; gap: 6px; cursor: pointer;
+        }
+
+        /* ── Texture Editor ── */
+        .texture-zoom-overlay {
+            display: none; position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.95); z-index: 2000;
+            align-items: center; justify-content: center;
+            flex-direction: column;
+        }
+        .texture-zoom-overlay.visible { display: flex; }
+        .tex-editor-wrap {
+            width: 92vw; height: 90vh; display: flex; flex-direction: column;
+            background: var(--surface); border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .tex-editor-toolbar {
+            display: flex; gap: 10px; padding: 10px 16px; align-items: center;
+            background: var(--surface-2); border-bottom: 1px solid var(--border);
+            flex-wrap: wrap;
+        }
+        .tex-tool-group { display: flex; gap: 4px; }
+        .tex-tool {
+            background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+            color: var(--text); padding: 5px 10px; border-radius: 6px;
+            cursor: pointer; font-size: 14px; transition: all 0.15s;
+        }
+        .tex-tool:hover { background: rgba(255,255,255,0.12); }
+        .tex-tool.active { background: var(--accent); border-color: var(--accent); }
+        .tex-editor-canvas-wrap {
+            flex: 1; overflow: auto; display: flex; align-items: center;
+            justify-content: center; background: #0a0a0f;
+            position: relative;
+        }
+        .tex-editor-canvas-wrap canvas { border: 1px solid var(--border); }
+        .tex-editor-footer {
+            display: flex; gap: 12px; padding: 10px 16px; align-items: center;
+            background: var(--surface-2); border-top: 1px solid var(--border);
+        }
+
+        /* ── 3D Viewer ── */
+        .viewer-container {
+            width: 100%; height: 450px; position: relative; background: #111118;
+        }
+        .viewer-controls {
+            position: absolute; bottom: 12px; left: 12px;
+            display: flex; gap: 8px; z-index: 3;
+        }
+        .viewer-controls button {
+            background: rgba(0,0,0,0.6); border: 1px solid rgba(255,255,255,0.15);
+            color: white; padding: 6px 12px; border-radius: 6px;
+            cursor: pointer; font-size: 12px; transition: all 0.2s;
+        }
+        .viewer-controls button:hover { background: var(--accent); }
+        .viewer-info {
+            position: absolute; top: 12px; left: 12px; z-index: 3;
+            background: rgba(0,0,0,0.6); padding: 8px 14px;
+            border-radius: 8px; font-size: 12px; color: var(--text-dim);
+        }
+        .viewer-placeholder {
+            width: 100%; height: 450px; display: flex;
+            flex-direction: column; align-items: center;
+            justify-content: center; color: var(--text-dim);
+            background: var(--surface-2); gap: 16px; padding: 32px;
+            text-align: center;
+        }
+        .viewer-placeholder .icon { font-size: 64px; }
+        .viewer-placeholder h3 { font-size: 16px; color: var(--text); }
+        .viewer-placeholder p { font-size: 13px; line-height: 1.6; max-width: 400px; }
+
+        model-viewer {
+            width: 100%; height: 100%;
+            --poster-color: #111118;
+        }
+        .viewer-controls button.active {
+            background: var(--accent); border-color: var(--accent);
+        }
+
+        /* ── Modal Body ── */
+        .modal-body { padding: 24px; }
+        .modal-title { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
+        .modal-row {
+            display: flex; justify-content: space-between;
+            padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+        }
+        .modal-row .label { color: var(--text-dim); }
+        .modal-row .value { font-weight: 600; }
+        .modal-row a { color: var(--blue); text-decoration: none; }
+        .modal-row a:hover { text-decoration: underline; }
+        .modal-desc {
+            margin-top: 16px; font-size: 13px; color: var(--text-dim); line-height: 1.6;
+        }
+        .modal-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+        /* ── Toast ── */
+        .toast {
+            position: fixed; bottom: 24px; right: 24px; z-index: 3000;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 14px 20px; font-size: 13px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            transform: translateY(100px); opacity: 0; transition: all 0.3s;
+            max-width: 400px;
+        }
+        .toast.visible { transform: translateY(0); opacity: 1; }
+        .toast.success { border-color: var(--green); }
+        .toast.error { border-color: var(--red); }
+
+        /* ── Handling Editor ── */
+        .handling-editor { padding: 16px; }
+        .handling-section {
+            background: var(--surface-2); border: 1px solid var(--border);
+            border-radius: 10px; margin-bottom: 12px; overflow: hidden;
+        }
+        .handling-section-header {
+            padding: 12px 16px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+            font-weight: 600; font-size: 14px; user-select: none;
+            transition: background 0.15s;
+        }
+        .handling-section-header:hover { background: rgba(108,92,231,0.08); }
+        .handling-section-header .chevron {
+            transition: transform 0.2s; font-size: 12px; color: var(--text-dim);
+        }
+        .handling-section.collapsed .handling-fields { display: none; }
+        .handling-section.collapsed .chevron { transform: rotate(-90deg); }
+        .handling-fields { padding: 4px 16px 16px; }
+        .handling-field {
+            display: grid; grid-template-columns: 1fr 120px 60px;
+            gap: 10px; align-items: center; padding: 6px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.04);
+        }
+        .handling-field:last-child { border-bottom: none; }
+        .handling-field label {
+            font-size: 12px; color: var(--text-dim);
+            display: flex; flex-direction: column; gap: 2px;
+        }
+        .handling-field label .field-name { color: var(--text); font-weight: 500; font-size: 13px; }
+        .handling-field input[type="range"] {
+            width: 100%; accent-color: var(--accent); height: 4px;
+            -webkit-appearance: none; appearance: none; background: var(--border); border-radius: 2px;
+            outline: none;
+        }
+        .handling-field input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+            border-radius: 50%; background: var(--accent); cursor: pointer;
+        }
+        .handling-field input[type="number"] {
+            background: var(--bg); border: 1px solid var(--border);
+            color: var(--text); padding: 5px 8px; border-radius: 6px;
+            font-size: 13px; text-align: right; width: 100%;
+            outline: none; font-family: monospace;
+        }
+        .handling-field input[type="number"]:focus { border-color: var(--accent); }
+        .handling-actions {
+            display: flex; gap: 10px; padding: 16px;
+            border-top: 1px solid var(--border); flex-wrap: wrap;
+        }
+        .handling-actions .btn-action { font-size: 13px; padding: 8px 18px; }
+        .handling-preset-bar {
+            display: flex; gap: 6px; padding: 12px 16px;
+            border-bottom: 1px solid var(--border); overflow-x: auto;
+        }
+        .handling-preset {
+            background: var(--surface); border: 1px solid var(--border);
+            color: var(--text-dim); padding: 5px 14px; border-radius: 16px;
+            font-size: 12px; cursor: pointer; white-space: nowrap;
+            transition: all 0.2s;
+        }
+        .handling-preset:hover { border-color: var(--accent); color: var(--text); }
+        .handling-preset.active { background: var(--accent); border-color: var(--accent); color: white; }
+
+        /* ── Pipeline Toolbar ── */
+        .pipeline-bar {
+            display: flex; gap: 10px; padding: 16px 32px;
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            align-items: center; flex-wrap: wrap;
+        }
+        .pipeline-bar .pipe-label {
+            font-size: 12px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 1px; color: var(--text-dim); margin-right: 4px;
+        }
+        .pipe-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--surface-2); border: 1px solid var(--border);
+            color: var(--text); padding: 8px 16px; border-radius: 8px;
+            cursor: pointer; font-size: 13px; font-weight: 500;
+            transition: all 0.2s;
+        }
+        .pipe-btn:hover { border-color: var(--accent); background: var(--accent); color: #fff; }
+        .pipe-btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+        .pipe-btn .pipe-icon { font-size: 16px; }
+        .pipe-btn.running { border-color: var(--orange); color: var(--orange); }
+        .pipe-btn.running .pipe-icon { animation: spin 1s linear infinite; }
+        .pipe-sep { width: 1px; height: 28px; background: var(--border); margin: 0 4px; }
+        .pipe-count-input {
+            background: var(--surface-2); border: 1px solid var(--border);
+            color: var(--text); width: 52px; padding: 8px 6px;
+            border-radius: 8px; font-size: 13px; text-align: center;
+        }
+        .pipe-status {
+            margin-left: auto; font-size: 12px; color: var(--text-dim);
+            max-width: 350px; overflow: hidden; text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .loading { text-align: center; padding: 60px; color: var(--text-dim); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spinner {
+            display: inline-block; width: 32px; height: 32px;
+            border: 3px solid var(--border); border-top-color: var(--accent);
+            border-radius: 50%; animation: spin 0.8s linear infinite; margin-bottom: 12px;
+        }
+        .spinner-sm {
+            display: inline-block; width: 16px; height: 16px;
+            border: 2px solid var(--border); border-top-color: var(--accent);
+            border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle;
+        }
+
+        .empty-state { text-align: center; padding: 80px 32px; color: var(--text-dim); }
+        .empty-state .icon { font-size: 64px; margin-bottom: 16px; }
+        .empty-state h2 { font-size: 20px; color: var(--text); margin-bottom: 8px; }
+        .empty-state p { max-width: 400px; margin: 0 auto; line-height: 1.6; }
+        .empty-state code {
+            display: inline-block; background: var(--surface);
+            border: 1px solid var(--border); padding: 8px 16px;
+            border-radius: 8px; margin-top: 16px; font-size: 13px; color: var(--green);
+        }
+
+        @media (max-width: 768px) {
+            .header { padding: 16px; flex-wrap: wrap; gap: 12px; }
+            .stats-bar { padding: 16px; }
+            .filter-bar { padding: 0 16px 12px; }
+            .asset-grid { padding: 0 16px 16px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+            .search-box { width: 100%; margin-left: 0; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <div class="header-left">
+        <h1>RageMP Vehicle Workshop</h1>
+        <span class="header-badge" id="totalBadge">0 vehicles</span>
+    </div>
+    <div class="header-right">
+        <span class="last-updated" id="lastUpdated"></span>
+        <button class="btn-refresh" onclick="loadAssets()">Refresh</button>
+    </div>
+</div>
+
+<div class="stats-bar" id="statsBar"></div>
+
+<div class="pipeline-bar">
+    <span class="pipe-label">Download</span>
+    <input type="number" class="pipe-count-input" id="scrapeCount" value="5" min="1" max="50" title="Number of addon vehicles to download">
+    <button class="pipe-btn" onclick="runScrape('vehicles')" id="scrapeVehicles">
+        <span class="pipe-icon">&#128663;</span> Scrape Addon Vehicles
+    </button>
+    <div class="pipe-sep"></div>
+    <span class="pipe-label">Process</span>
+    <button class="pipe-btn" onclick="runExtractAll()" id="btnExtractAll">
+        <span class="pipe-icon">&#128230;</span> Extract All
+    </button>
+    <button class="pipe-btn" onclick="runCleanIndex()" id="btnClean" title="Remove entries whose files no longer exist">
+        <span class="pipe-icon">&#128465;</span> Clean Index
+    </button>
+    <span class="pipe-status" id="pipeStatus"></span>
+</div>
+
+<div class="filter-bar">
+    <div class="view-toggle">
+        <button class="active" onclick="setView('grid', this)" title="Grid view">&#9638;</button>
+        <button onclick="setView('list', this)" title="List view">&#9776;</button>
+    </div>
+    <input type="text" class="search-box" placeholder="Search assets..." oninput="filterSearch(this.value)">
+</div>
+
+<div class="asset-grid" id="assetGrid">
+    <div class="loading"><div class="spinner"></div><br>Loading assets...</div>
+</div>
+
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+    <div class="modal" id="modal" onclick="event.stopPropagation()">
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+        <div id="modalContent"></div>
+    </div>
+</div>
+
+<div class="texture-zoom-overlay" id="texZoom">
+    <div class="tex-editor-wrap" onclick="event.stopPropagation()">
+        <div class="tex-editor-toolbar">
+            <span class="label" id="texZoomLabel" style="font-weight:600"></span>
+            <span style="flex:1"></span>
+            <div class="tex-tool-group">
+                <button class="tex-tool active" data-tool="brush" onclick="setTexTool('brush',this)" title="Paint Brush">&#x1F58C;&#xFE0F;</button>
+                <button class="tex-tool" data-tool="eraser" onclick="setTexTool('eraser',this)" title="Eraser">&#x1F9F9;</button>
+                <button class="tex-tool" data-tool="rect" onclick="setTexTool('rect',this)" title="Fill Rectangle">&#x25A0;</button>
+                <button class="tex-tool" data-tool="clone" onclick="setTexTool('clone',this)" title="Clone Stamp">&#x1F4CB;</button>
+            </div>
+            <input type="color" id="texBrushColor" value="#888888" onchange="updateTexBrush()" title="Brush Color" style="width:32px;height:28px;border:none;cursor:pointer;background:none">
+            <label style="font-size:12px;color:var(--text-dim);display:flex;align-items:center;gap:4px">
+                Size <input type="range" id="texBrushSize" min="1" max="80" value="20" onchange="updateTexBrush()" style="width:80px">
+                <span id="texBrushSizeLabel">20</span>
+            </label>
+            <button class="btn-action" onclick="texEditorUndo()" style="padding:4px 10px" title="Undo">&#x21A9;&#xFE0F;</button>
+            <button class="btn-action" onclick="texEditorReset()" style="padding:4px 10px" title="Reset">&#x1F504;</button>
+        </div>
+        <div class="tex-editor-canvas-wrap" id="texEditorCanvasWrap">
+            <canvas id="texEditorCanvas"></canvas>
+        </div>
+        <div class="tex-editor-footer">
+            <button class="btn-action" onclick="closeTexZoom()">&#x274C; Cancel</button>
+            <span style="flex:1"></span>
+            <span id="texEditorDims" style="font-size:12px;color:var(--text-dim)"></span>
+            <button class="btn-action success" onclick="saveTexture()" id="texSaveBtn">&#x1F4BE; Save Texture</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- Fabric.js for texture canvas editing -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+<!-- Google model-viewer for PBR 3D preview -->
+<script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js"></script>
+
+<script>
+let allAssets = [];
+let currentSearch = "";
+let currentView = "grid";
+let currentModalAsset = null;
+let currentPreviewData = null;
+
+const VEHICLE_ICON = "\u{1F697}";
+
+const FILE_ICONS = {
+    '.yft': '\u{1F3CE}', '.ytd': '\u{1F3A8}', '.ydr': '\u{1F52B}',
+    '.ydd': '\u{1F455}', '.ymap': '\u{1F5FA}', '.ytyp': '\u{1F3D7}',
+    '.rpf': '\u{1F4E6}', '.meta': '\u{1F4C4}', '.xml': '\u{1F4C4}',
+    '.txt': '\u{1F4DD}', '.dds': '\u{1F5BC}', '.png': '\u{1F5BC}',
+    '.jpg': '\u{1F5BC}', '.obj': '\u{1F4D0}', '.fbx': '\u{1F4D0}',
+    '.glb': '\u{1F4D0}', '.gltf': '\u{1F4D0}',
+};
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast visible ' + (type || '');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(() => t.className = 'toast', 4000);
+}
+
+/* ── Pipeline: Scrape & Extract ── */
+async function runScrape(category) {
+    const count = parseInt(document.getElementById('scrapeCount').value) || 5;
+    const btnId = 'scrape' + category.charAt(0).toUpperCase() + category.slice(1);
+    const btn = document.getElementById(btnId);
+    const status = document.getElementById('pipeStatus');
+    if (btn) { btn.disabled = true; btn.classList.add('running'); }
+    status.textContent = `Scraping ${count} ${category}...`;
+    showToast(`Scraping ${count} ${category} assets...`, '');
+    try {
+        const r = await fetch('/api/pipeline/scrape', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ category, count })
+        });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error || 'Scrape failed');
+        status.textContent = result.message || 'Done';
+        showToast(result.message || `Scraped ${category}!`, 'success');
+        loadAssets();
+    } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+        showToast('Scrape error: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.classList.remove('running'); }
+    }
+}
+
+async function runExtractAll() {
+    const btn = document.getElementById('btnExtractAll');
+    const status = document.getElementById('pipeStatus');
+    if (btn) { btn.disabled = true; btn.classList.add('running'); }
+    status.textContent = 'Extracting all assets...';
+    showToast('Extracting previews for all assets...', '');
+    try {
+        const r = await fetch('/api/pipeline/extract-all', { method: 'POST' });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error || 'Extract failed');
+        status.textContent = result.message || 'Done';
+        showToast(result.message || 'Extraction complete!', 'success');
+        loadAssets();
+    } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+        showToast('Extract error: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.classList.remove('running'); }
+    }
+}
+
+async function runCleanIndex() {
+    const btn = document.getElementById('btnClean');
+    const status = document.getElementById('pipeStatus');
+    if (btn) { btn.disabled = true; btn.classList.add('running'); }
+    status.textContent = 'Cleaning stale entries...';
+    try {
+        const r = await fetch('/api/pipeline/clean-index', { method: 'POST' });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error || 'Clean failed');
+        status.textContent = result.message || 'Done';
+        showToast(result.message || 'Index cleaned!', 'success');
+        loadAssets();
+    } catch (e) {
+        status.textContent = 'Error: ' + e.message;
+        showToast('Clean error: ' + e.message, 'error');
+    } finally {
+        if (btn) { btn.disabled = false; btn.classList.remove('running'); }
+    }
+}
+
+async function loadAssets() {
+    try {
+        const [ar, sr] = await Promise.all([fetch("/api/assets"), fetch("/api/stats")]);
+        const data = await ar.json(), stats = await sr.json();
+        allAssets = data.assets;
+        renderStats(stats);
+        renderAssets();
+        document.getElementById("totalBadge").textContent = `${data.total} vehicles`;
+        if (data.last_updated)
+            document.getElementById("lastUpdated").textContent = `Last scan: ${new Date(data.last_updated).toLocaleString()}`;
+    } catch (e) {
+        document.getElementById("assetGrid").innerHTML = `<div class="empty-state">
+            <div class="icon">\u{1F4E6}</div><h2>No assets yet</h2>
+            <p>Run the scraper first.</p><code>python run.py --category vehicles --count 5</code></div>`;
+    }
+}
+
+function renderStats(stats) {
+    const bar = document.getElementById("statsBar");
+    const veh = stats.categories?.vehicles || { count: 0, size_mb: 0 };
+    bar.innerHTML = `
+        <div class="stat-card"><div class="stat-value">${veh.count}</div><div class="stat-label">${VEHICLE_ICON} Vehicles</div></div>
+        <div class="stat-card blue"><div class="stat-value">${stats.total_size_mb}</div><div class="stat-label">Total MB</div></div>
+        <div class="stat-card green"><div class="stat-value" id="statExtracted">-</div><div class="stat-label">Extracted</div></div>
+        <div class="stat-card orange"><div class="stat-value" id="statPending">-</div><div class="stat-label">Pending</div></div>`;
+    // Count extracted vs pending
+    const extracted = allAssets.filter(a => a.has_preview).length;
+    const el = document.getElementById('statExtracted');
+    const pl = document.getElementById('statPending');
+    if (el) el.textContent = extracted;
+    if (pl) pl.textContent = allAssets.length - extracted;
+}
+
+
+function filterSearch(q) { currentSearch = q.toLowerCase(); renderAssets(); }
+
+function setView(v, btn) {
+    currentView = v;
+    document.querySelectorAll(".view-toggle button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    document.getElementById("assetGrid").classList.toggle("list-view", v === "list");
+}
+
+function getFilteredAssets() {
+    return allAssets.filter(a => {
+        if (currentSearch && !`${a.name} ${a.safe_name} ${a.author} ${a.filename} ${(a.tags||[]).join(" ")}`.toLowerCase().includes(currentSearch)) return false;
+        return true;
+    });
+}
+
+function getAssetThumbUrl(a) {
+    if (a.thumbnail_relative) return `/file/${encodeURIComponent(a.thumbnail_relative.replace(/\\/g,"/"))}`;
+    if (a.screenshots?.length > 0) return a.screenshots[0];
+    return null;
+}
+
+function renderAssets() {
+    const grid = document.getElementById("assetGrid");
+    const filtered = getFilteredAssets();
+    if (!filtered.length) {
+        grid.innerHTML = `<div class="empty-state"><div class="icon">\u{1F50D}</div>
+            <h2>${allAssets.length ? "No matching assets" : "No assets downloaded yet"}</h2>
+            <p>${allAssets.length ? "Try a different filter." : "Run the scraper."}</p>
+            ${allAssets.length ? '' : '<code>python run.py --category vehicles --count 5</code>'}</div>`;
+        return;
+    }
+    grid.innerHTML = filtered.map((a, i) => {
+        const icon = VEHICLE_ICON;
+        const thumb = getAssetThumbUrl(a);
+        const tHtml = thumb
+            ? `<img class="asset-thumb" src="${thumb}" alt="${a.name}" loading="lazy" onerror="this.outerHTML='<div class=\\'asset-thumb-placeholder\\'>${icon}</div>'">`
+            : `<div class="asset-thumb-placeholder">${icon}</div>`;
+        return `<div class="asset-card" onclick="openModal(${i})">
+            ${tHtml}
+            <div class="asset-body">
+                <div class="asset-name" title="${a.name||a.filename}">${a.name||a.filename}</div>
+                <div class="asset-meta">
+                    <span class="asset-tag category">${icon} Vehicle</span>
+                    ${a.filesize_mb ? `<span class="asset-tag">${a.filesize_mb} MB</span>` : ''}
+                    ${a.has_preview ? '<span class="asset-tag preview-ready">\u{2705} Extracted</span>' : ''}
+                </div>
+                <div class="asset-details">
+                    ${a.author ? `<span class="asset-author">by ${a.author}</span>` : '<span></span>'}
+                    <span>${a.downloaded_at ? new Date(a.downloaded_at).toLocaleDateString() : ''}</span>
+                </div>
+            </div></div>`;
+    }).join("");
+}
+
+/* ── Gallery ── */
+let gIdx = 0, gImgs = [];
+
+function galleryGo(i) {
+    if (gImgs.length <= 1) return;
+    gIdx = (i + gImgs.length) % gImgs.length;
+    const m = document.getElementById('galleryMain');
+    if (m) m.src = gImgs[gIdx];
+    const c = document.getElementById('galleryCounter');
+    if (c) c.textContent = `${gIdx+1} / ${gImgs.length}`;
+    document.querySelectorAll('.gallery-dot').forEach((d,j) => d.classList.toggle('active', j===gIdx));
+    document.querySelectorAll('.gallery-thumbstrip img').forEach((t,j) => t.classList.toggle('active', j===gIdx));
+}
+
+/* ── Modal ── */
+function openModal(fi) {
+    const filtered = getFilteredAssets();
+    const asset = filtered[fi];
+    if (!asset) return;
+    currentModalAsset = asset;
+    currentPreviewData = null;
+    const icon = VEHICLE_ICON;
+    const ss = asset.screenshots || [];
+    const lt = asset.thumbnail_relative ? `/file/${encodeURIComponent(asset.thumbnail_relative.replace(/\\/g,"/"))}` : null;
+    gImgs = ss.length ? [...ss] : lt ? [lt] : [];
+    gIdx = 0;
+
+    let galHtml;
+    if (gImgs.length > 1) {
+        galHtml = `<div class="gallery-container">
+            <img class="gallery-main" id="galleryMain" src="${gImgs[0]}">
+            <button class="gallery-nav prev" onclick="galleryGo(gIdx-1)">&lsaquo;</button>
+            <button class="gallery-nav next" onclick="galleryGo(gIdx+1)">&rsaquo;</button>
+            <span class="gallery-counter" id="galleryCounter">1 / ${gImgs.length}</span>
+            <div class="gallery-dots">${gImgs.map((_,i) => `<button class="gallery-dot${i?'':' active'}" onclick="galleryGo(${i})"></button>`).join('')}</div>
+        </div>
+        <div class="gallery-thumbstrip">${gImgs.map((u,i) => `<img src="${u}" class="${i?'':'active'}" onclick="galleryGo(${i})" loading="lazy">`).join('')}</div>`;
+    } else if (gImgs.length === 1) {
+        galHtml = `<div class="gallery-container"><img class="gallery-main" src="${gImgs[0]}"></div>`;
+    } else {
+        galHtml = `<div class="viewer-placeholder" style="height:200px"><div class="icon">${icon}</div></div>`;
+    }
+
+    const date = asset.downloaded_at ? new Date(asset.downloaded_at).toLocaleString() : "N/A";
+
+    document.getElementById("modalContent").innerHTML = `
+        <div class="modal-tabs">
+            <button class="modal-tab active" onclick="switchTab('screenshots',this)">\u{1F4F7} Screenshots</button>
+            <button class="modal-tab" onclick="switchTab('contents',this)">\u{1F4C2} Contents</button>
+            <button class="modal-tab" onclick="switchTab('textures',this)">\u{1F3A8} Textures</button>
+            <button class="modal-tab" onclick="switchTab('viewer3d',this)">\u{1F4D0} 3D Preview</button>
+            <button class="modal-tab" onclick="switchTab('handling',this)">\u{2699}\u{FE0F} Handling</button>
+            <button class="modal-tab" onclick="switchTab('export',this)">\u{1F4E6} Export</button>
+        </div>
+        <div class="modal-tab-content active" id="tab-screenshots">${galHtml}</div>
+        <div class="modal-tab-content" id="tab-contents">
+            <div class="extract-prompt" id="contentsArea">
+                <div style="font-size:48px">\u{1F4E6}</div>
+                <p>Extract the archive to inspect its contents</p>
+                <button class="btn-action" onclick="extractPreview()" id="extractBtn">\u{1F504} Extract & Analyze</button>
+            </div>
+        </div>
+        <div class="modal-tab-content" id="tab-textures">
+            <div class="extract-prompt" id="texturesArea">
+                <div style="font-size:48px">\u{1F3A8}</div>
+                <p>Extract first to view textures</p>
+                <button class="btn-action" onclick="extractPreview()">\u{1F504} Extract & Analyze</button>
+            </div>
+        </div>
+        <div class="modal-tab-content" id="tab-viewer3d">
+            <div class="viewer-placeholder" id="viewer3dArea">
+                <div class="icon">\u{1F4D0}</div>
+                <h3>3D Model Preview</h3>
+                <p>Extract the archive first. If OBJ/FBX/GLB files are found, they render here.<br>
+                GTA native formats (.yft/.ytd) inside .rpf require <strong>CodeWalker</strong> to export.</p>
+                <button class="btn-action" onclick="extractPreview()" id="v3dExtBtn">\u{1F504} Extract & Analyze</button>
+            </div>
+        </div>
+        <div class="modal-tab-content" id="tab-handling"><div id="handlingArea"></div></div>
+        <div class="modal-tab-content" id="tab-export"><div id="exportArea" class="extract-prompt"><div style="font-size:48px">\u{1F4E6}</div><p>Loading changes...</p></div></div>
+        <div class="modal-body">
+            <div class="modal-title">${asset.name||asset.filename}</div>
+            <div class="modal-row"><span class="label">Type</span><span class="value">${icon} Addon Vehicle</span></div>
+            <div class="modal-row"><span class="label">File</span><span class="value">${asset.filename}</span></div>
+            <div class="modal-row"><span class="label">Size</span><span class="value" style="color:var(--green)">${asset.filesize_mb||"?"} MB</span></div>
+            ${asset.author ? `<div class="modal-row"><span class="label">Author</span><span class="value" style="color:var(--blue)">${asset.author}</span></div>` : ""}
+            ${asset.downloads_count ? `<div class="modal-row"><span class="label">Downloads</span><span class="value">${asset.downloads_count}</span></div>` : ""}
+            <div class="modal-row"><span class="label">Downloaded</span><span class="value">${date}</span></div>
+            ${asset.source_url ? `<div class="modal-row"><span class="label">Source</span><a href="${asset.source_url}" target="_blank" rel="noopener noreferrer">${asset.source_url}</a></div>` : ""}
+            ${asset.description ? `<div class="modal-desc">${asset.description}</div>` : ""}
+            ${asset.tags?.length ? `<div class="modal-tags">${[...new Set(asset.tags)].map(t=>`<span class="asset-tag">${t}</span>`).join("")}</div>` : ""}
+        </div>`;
+
+    document.getElementById("modalOverlay").classList.add("visible");
+    if (asset.has_preview && asset.safe_name) loadPreviewData(asset.safe_name);
+}
+
+function switchTab(id, btn) {
+    document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.modal-tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+id).classList.add('active');
+    if (id === 'viewer3d' && currentPreviewData?.models?.length > 0) init3DViewer();
+    if (id === 'handling') renderHandlingTab();
+    if (id === 'export') renderExportTab();
+}
+
+function closeModal(e) {
+    if (e && e.target !== document.getElementById("modalOverlay")) return;
+    document.getElementById("modalOverlay").classList.remove("visible");
+    currentModalAsset = currentPreviewData = null;
+    handlingData = {};
+    handlingModelName = '';
+}
+
+/* ── Extract ── */
+async function extractPreview() {
+    if (!currentModalAsset?.safe_name) return;
+    const sn = currentModalAsset.safe_name;
+    document.querySelectorAll('#extractBtn, #v3dExtBtn').forEach(b => {
+        b.disabled = true; b.innerHTML = '<span class="spinner-sm"></span> Extracting...';
+    });
+    try {
+        const r = await fetch('/api/extract-preview', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ safeName: sn })
+        });
+        const res = await r.json();
+        if (!r.ok) throw new Error(res.error || 'Failed');
+        showToast('Archive extracted!', 'success');
+        currentModalAsset.has_preview = true;
+        await loadPreviewData(sn);
+        loadAssets();
+    } catch (err) {
+        showToast('Error: ' + err.message, 'error');
+        document.querySelectorAll('#extractBtn, #v3dExtBtn').forEach(b => {
+            b.disabled = false; b.innerHTML = '\u{1F504} Extract & Analyze';
+        });
+    }
+}
+
+async function loadPreviewData(sn) {
+    try {
+        const r = await fetch(`/api/preview-data/${encodeURIComponent(sn)}`);
+        if (!r.ok) return;
+        currentPreviewData = await r.json();
+        renderContentsTab(currentPreviewData);
+        renderTexturesTab(currentPreviewData);
+        render3DTab(currentPreviewData);
+        updateBadges(currentPreviewData);
+    } catch (e) { console.error('Preview data error:', e); }
+}
+
+function updateBadges(d) {
+    const tabs = document.querySelectorAll('.modal-tab');
+    if (d.files?.length) tabs[1].innerHTML = `\u{1F4C2} Contents <span class="tab-badge">${d.files.length}</span>`;
+    if (d.textures?.length) tabs[2].innerHTML = `\u{1F3A8} Textures <span class="tab-badge">${d.textures.length}</span>`;
+    if (d.models?.length) tabs[3].innerHTML = `\u{1F4D0} 3D Preview <span class="tab-badge">${d.models.length}</span>`;
+}
+
+/* ── Contents Tab ── */
+function renderContentsTab(d) {
+    const a = document.getElementById('contentsArea');
+    if (!d.files?.length) { a.innerHTML = '<div class="extract-prompt"><p>No files found.</p></div>'; return; }
+    const extCls = ext => {
+        if (['.yft','.ytd','.ydr','.ydd','.ymap','.ytyp'].includes(ext)) return 'gta';
+        if (['.obj','.fbx','.glb','.gltf','.dae'].includes(ext)) return 'model';
+        if (['.png','.jpg','.jpeg','.dds','.tga','.bmp'].includes(ext)) return 'image';
+        if (ext==='.rpf') return 'rpf';
+        return '';
+    };
+    let h = '<div class="file-tree">';
+    for (const f of d.files) {
+        h += `<div class="file-tree-item">
+            <span class="file-tree-icon">${FILE_ICONS[f.ext]||'\u{1F4C4}'}</span>
+            <span class="file-tree-name">${f.path}</span>
+            <span class="file-tree-ext ${extCls(f.ext)}">${f.ext.slice(1)}</span>
+            <span class="file-tree-size">${f.size_display}</span>
+        </div>`;
+    }
+    if (d.rpf_files?.length && d.needs_codewalker) {
+        h += `<div style="padding:16px;border-top:1px solid var(--border);margin-top:12px">
+            <p style="font-size:13px;color:var(--orange)">\u{26A0} <strong>${d.rpf_files.length} RPF archive(s)</strong> contain GTA V models.
+            Set CodeWalker path in config.json to auto-extract.</p>
+            <code style="font-size:12px;color:var(--green);background:var(--bg);padding:6px 12px;border-radius:6px;display:block;margin-top:8px">"converter": { "codewalker_path": "C:/Tools/CodeWalker" }</code>
+        </div>`;
+    }
+    h += '</div>';
+    a.innerHTML = h;
+}
+
+/* ── Textures Tab ── */
+function renderTexturesTab(d) {
+    const a = document.getElementById('texturesArea');
+    if (!d.textures?.length) {
+        a.innerHTML = `<div class="extract-prompt"><div style="font-size:48px">\u{1F3A8}</div>
+            <p>${d.needs_codewalker ? 'Textures are inside RPF archives. Configure CodeWalker to extract.' : 'No viewable textures in this archive.'}</p></div>`;
+        return;
+    }
+    const sn = d.safe_name;
+    let h = `<div class="texture-actions">
+        <button class="btn-action" onclick="launchTool('gimp','${sn}')" title="Open texture in GIMP">\u{1F58C}\u{FE0F} Open in GIMP</button>
+        <button class="btn-action" onclick="launchTool('paintnet','${sn}')" title="Open texture in Paint.NET">\u{1F3A8} Open in Paint.NET</button>
+        <button class="btn-action" onclick="openTexFolder('${sn}')" title="Open textures folder">\u{1F4C2} Open Folder</button>
+        <span style="flex:1"></span>
+        <span style="font-size:12px;color:var(--text-dim)">${d.textures.length} texture(s) — click to quick-edit, or use external tools</span>
+    </div><div class="textures-grid">`;
+    for (const t of d.textures) {
+        const url = `/file/downloads/_previews/${sn}/${t.preview}`;
+        const eName = (t.name||'').replace(/'/g, "\\'");
+        const ePrev = (t.preview||'').replace(/'/g, "\\'");
+        h += `<div class="texture-card" style="cursor:pointer">
+            <img src="${url}" loading="lazy" onerror="this.style.display='none'"
+                 onclick="openTexEditor('${sn}','${eName}','${ePrev}')">
+            <div class="tex-info">
+                <span class="tex-name" title="${t.original||t.name}">${t.name}</span>
+                <span class="file-tree-ext image">${t.format}</span>
+                <button class="btn-action" style="font-size:11px;padding:2px 6px;margin-left:auto"
+                    onclick="event.stopPropagation();launchTool('gimp','${sn}','${eName}')"
+                    title="Open this texture in GIMP">\u{1F58C}\u{FE0F}</button>
+            </div></div>`;
+    }
+    h += '</div>';
+    a.innerHTML = h;
+}
+
+/* ── Fabric.js Texture Editor ── */
+let texEditor = null;
+let texEditorState = { sn: '', name: '', preview: '', history: [], origUrl: '' };
+
+function openTexEditor(sn, name, preview) {
+    texEditorState = { sn, name, preview, history: [], origUrl: '' };
+    const url = `/file/downloads/_previews/${sn}/${preview}`;
+    texEditorState.origUrl = url;
+
+    document.getElementById('texZoomLabel').textContent = name;
+    document.getElementById('texZoom').classList.add('visible');
+
+    // Dispose previous editor
+    if (texEditor) { texEditor.dispose(); texEditor = null; }
+
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+        const wrap = document.getElementById('texEditorCanvasWrap');
+        const maxW = wrap.clientWidth - 40;
+        const maxH = wrap.clientHeight - 40;
+        const scale = Math.min(1, maxW / img.width, maxH / img.height);
+        const cW = Math.round(img.width * scale);
+        const cH = Math.round(img.height * scale);
+
+        const canvasEl = document.getElementById('texEditorCanvas');
+        canvasEl.width = cW;
+        canvasEl.height = cH;
+
+        texEditor = new fabric.Canvas('texEditorCanvas', {
+            width: cW, height: cH, isDrawingMode: true,
+            backgroundColor: '#111'
+        });
+
+        // Set background image at the scaled size
+        texEditor.setBackgroundImage(url, texEditor.renderAll.bind(texEditor), {
+            originX: 'left', originY: 'top',
+            scaleX: scale, scaleY: scale
+        });
+
+        // Store native dimensions for export
+        texEditorState.nativeW = img.width;
+        texEditorState.nativeH = img.height;
+        texEditorState.scale = scale;
+        document.getElementById('texEditorDims').textContent = `${img.width} \u00D7 ${img.height}px (native)`;
+
+        // Default brush
+        updateTexBrush();
+        setTexTool('brush', document.querySelector('.tex-tool[data-tool="brush"]'));
+
+        // Track history for undo
+        texEditor.on('path:created', () => {
+            texEditorState.history.push(texEditor.toJSON());
+        });
+    };
+    img.onerror = () => {
+        showToast('Failed to load texture', 'error');
+        closeTexZoom();
+    };
+    img.src = url;
+}
+
+function setTexTool(tool, btn) {
+    document.querySelectorAll('.tex-tool').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    if (!texEditor) return;
+    texEditorState.currentTool = tool;
+
+    if (tool === 'brush') {
+        texEditor.isDrawingMode = true;
+        texEditor.freeDrawingBrush = new fabric.PencilBrush(texEditor);
+        updateTexBrush();
+    } else if (tool === 'eraser') {
+        texEditor.isDrawingMode = true;
+        // Use white brush as eraser — paints over with sampled background
+        texEditor.freeDrawingBrush = new fabric.PencilBrush(texEditor);
+        texEditor.freeDrawingBrush.color = '#888888';
+        texEditor.freeDrawingBrush.width = parseInt(document.getElementById('texBrushSize').value);
+    } else if (tool === 'rect') {
+        texEditor.isDrawingMode = false;
+        texEditor.__rectMode = true;
+        texEditor.selection = false;
+        texEditor.defaultCursor = 'crosshair';
+        let startX, startY, rect;
+        texEditor.__onMouseDown = (o) => {
+            const ptr = texEditor.getPointer(o.e);
+            startX = ptr.x; startY = ptr.y;
+            rect = new fabric.Rect({
+                left: startX, top: startY, width: 0, height: 0,
+                fill: document.getElementById('texBrushColor').value,
+                selectable: false, evented: false
+            });
+            texEditor.add(rect);
+        };
+        texEditor.__onMouseMove = (o) => {
+            if (!rect) return;
+            const ptr = texEditor.getPointer(o.e);
+            rect.set({
+                width: Math.abs(ptr.x - startX),
+                height: Math.abs(ptr.y - startY),
+                left: Math.min(startX, ptr.x),
+                top: Math.min(startY, ptr.y)
+            });
+            texEditor.renderAll();
+        };
+        texEditor.__onMouseUp = () => {
+            if (rect) {
+                texEditorState.history.push(texEditor.toJSON());
+                rect = null;
+            }
+        };
+        texEditor.on('mouse:down', texEditor.__onMouseDown);
+        texEditor.on('mouse:move', texEditor.__onMouseMove);
+        texEditor.on('mouse:up', texEditor.__onMouseUp);
+    } else if (tool === 'clone') {
+        texEditor.isDrawingMode = true;
+        texEditor.freeDrawingBrush = new fabric.PencilBrush(texEditor);
+        // Sample color from background at cursor
+        texEditor.freeDrawingBrush.color = document.getElementById('texBrushColor').value;
+        texEditor.freeDrawingBrush.width = parseInt(document.getElementById('texBrushSize').value);
+    }
+
+    // Clean up rect listeners if switching away
+    if (tool !== 'rect' && texEditor.__rectMode) {
+        texEditor.off('mouse:down', texEditor.__onMouseDown);
+        texEditor.off('mouse:move', texEditor.__onMouseMove);
+        texEditor.off('mouse:up', texEditor.__onMouseUp);
+        texEditor.__rectMode = false;
+        texEditor.defaultCursor = 'default';
+    }
+}
+
+function updateTexBrush() {
+    const size = parseInt(document.getElementById('texBrushSize').value);
+    const color = document.getElementById('texBrushColor').value;
+    document.getElementById('texBrushSizeLabel').textContent = size;
+    if (texEditor && texEditor.freeDrawingBrush) {
+        texEditor.freeDrawingBrush.width = size;
+        if (texEditorState.currentTool === 'brush') {
+            texEditor.freeDrawingBrush.color = color;
+        }
+    }
+}
+
+function texEditorUndo() {
+    if (!texEditor) return;
+    const objs = texEditor.getObjects();
+    if (objs.length > 0) {
+        texEditor.remove(objs[objs.length - 1]);
+        texEditor.renderAll();
+    }
+}
+
+function texEditorReset() {
+    if (!texEditor) return;
+    texEditor.getObjects().slice().forEach(o => texEditor.remove(o));
+    texEditor.renderAll();
+    texEditorState.history = [];
+}
+
+function closeTexZoom() {
+    document.getElementById('texZoom').classList.remove('visible');
+    if (texEditor) { texEditor.dispose(); texEditor = null; }
+}
+
+async function saveTexture() {
+    if (!texEditor || !texEditorState.sn) return;
+    const btn = document.getElementById('texSaveBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span> Saving...';
+
+    try {
+        // Export at native resolution
+        const nW = texEditorState.nativeW;
+        const nH = texEditorState.nativeH;
+        const multiplier = 1 / texEditorState.scale;
+
+        const dataUrl = texEditor.toDataURL({
+            format: 'png', quality: 1, multiplier: multiplier,
+            width: texEditor.width, height: texEditor.height
+        });
+
+        const r = await fetch('/api/save-texture', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                safeName: texEditorState.sn,
+                textureName: texEditorState.name,
+                previewPath: texEditorState.preview,
+                imageData: dataUrl
+            })
+        });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error || 'Save failed');
+
+        showToast(`Texture saved: ${texEditorState.name}`, 'success');
+        btn.disabled = false; btn.innerHTML = '\u{2705} Saved!';
+
+        // Refresh texture grid to show updated preview
+        if (currentModalAsset?.safe_name) await loadPreviewData(currentModalAsset.safe_name);
+
+        setTimeout(() => { btn.innerHTML = '\u{1F4BE} Save Texture'; }, 2000);
+    } catch (e) {
+        showToast('Save error: ' + e.message, 'error');
+        btn.disabled = false; btn.innerHTML = '\u{1F4BE} Save Texture';
+    }
+}
+
+/* ── 3D Viewer (model-viewer) ── */
+function render3DTab(d) {
+    const a = document.getElementById('viewer3dArea');
+    if (d.models?.length) {
+        const sn = d.safe_name;
+        const m = d.models[0];
+        // Prefer textured GLB if available
+        const texturedPath = m.textured_path || m.path;
+        const modelUrl = `/file/downloads/_previews/${sn}/${texturedPath}`;
+        const fallbackUrl = `/file/downloads/_previews/${sn}/${m.path}`;
+
+        a.innerHTML = `<div class="viewer-container" id="viewer3dContainer">
+            <div class="viewer-info" id="viewerInfo">${m.name} | Drag to rotate, scroll to zoom</div>
+            <model-viewer
+                id="modelViewer"
+                src="${modelUrl}"
+                camera-controls
+                environment-image="neutral"
+                shadow-intensity="1"
+                shadow-softness="0.5"
+                exposure="1.2"
+                tone-mapping="commerce"
+                orientation="0deg 0deg 0deg"
+                camera-orbit="30deg 75deg 105%"
+                min-camera-orbit="auto 20deg auto"
+                max-camera-orbit="auto 170deg auto"
+                interaction-prompt="none"
+                style="width:100%; height:100%; background-color:#111118;"
+                alt="3D model preview for ${sn}"
+            ></model-viewer>
+            <div class="viewer-controls">
+                <button onclick="resetMVCamera()">Reset</button>
+                <button onclick="toggleMVRotation()">Auto-Rotate</button>
+                <button onclick="flipModelOrientation()" id="flipBtn" title="Cycle through orientations if model looks wrong">Flip</button>
+                <button onclick="embedTexturesUI()" id="embedTexBtn">Embed Textures</button>
+                <button onclick="launchTool('blender','${sn}')" style="background:var(--accent)">Open in Blender</button>
+                ${d.models.length > 1 ? d.models.map((mod,i) => 
+                    `<button onclick="switchModel(${i})" class="${i===0?'active':''}">${mod.name}</button>`
+                ).join('') : ''}
+            </div></div>`;
+
+        // Check if textured version exists, fallback to original
+        const mv = document.getElementById('modelViewer');
+        if (mv) {
+            mv.addEventListener('error', () => {
+                console.log('[3D] Textured GLB failed, falling back to original');
+                mv.src = fallbackUrl;
+            });
+            // Auto-embed textures if no textured version exists yet
+            if (!m.textured_path) {
+                mv.addEventListener('load', () => {
+                    console.log('[3D] No textured GLB found, auto-embedding textures...');
+                    embedTexturesUI();
+                }, { once: true });
+            }
+        }
+    } else {
+        let msg;
+        if (d.needs_codewalker) {
+            msg = `<p>This mod has <strong>.rpf</strong> archives with GTA V models (.yft/.ytd).</p>
+                <p style="margin-top:12px">Install <a href="https://codewalker.net/" target="_blank" rel="noopener noreferrer" style="color:var(--blue)">CodeWalker</a>,
+                set path in <code style="color:var(--green)">config.json</code>, then re-extract.</p>`;
+        } else {
+            msg = '<p>No 3D model files found in this archive.</p>';
+        }
+        a.innerHTML = `<div class="viewer-placeholder"><div class="icon">\u{1F4D0}</div><h3>3D Model Preview</h3>${msg}</div>`;
+    }
+}
+
+let modelOrientationIdx = 0;
+const MODEL_ORIENTATIONS = [
+    '0deg 0deg 0deg',       // Default (already Y-up)
+    '270deg 0deg 0deg',     // Z-up -> Y-up (rotate -90 around X)
+    '90deg 0deg 0deg',      // Flip Z-up (rotate +90 around X)
+    '180deg 0deg 0deg',     // Upside down fix
+    '270deg 0deg 180deg',   // Z-up + 180 yaw
+    '90deg 0deg 180deg',    // Flipped + 180 yaw
+];
+
+function flipModelOrientation() {
+    const mv = document.getElementById('modelViewer');
+    if (!mv) return;
+    modelOrientationIdx = (modelOrientationIdx + 1) % MODEL_ORIENTATIONS.length;
+    mv.orientation = MODEL_ORIENTATIONS[modelOrientationIdx];
+    const btn = document.getElementById('flipBtn');
+    if (btn) btn.textContent = `Flip (${modelOrientationIdx + 1}/${MODEL_ORIENTATIONS.length})`;
+}
+
+function resetMVCamera() {
+    const mv = document.getElementById('modelViewer');
+    if (!mv) return;
+    mv.cameraOrbit = '30deg 80deg 105%';
+    modelOrientationIdx = 0;
+    mv.orientation = MODEL_ORIENTATIONS[0];
+    const btn = document.getElementById('flipBtn');
+    if (btn) btn.textContent = 'Flip';
+}
+
+function toggleMVRotation() {
+    const mv = document.getElementById('modelViewer');
+    if (!mv) return;
+    if (mv.hasAttribute('auto-rotate')) mv.removeAttribute('auto-rotate');
+    else { mv.setAttribute('auto-rotate', ''); mv.setAttribute('auto-rotate-delay', '0'); mv.setAttribute('rotation-per-second', '30deg'); }
+}
+
+function switchModel(idx) {
+    if (!currentPreviewData?.models?.[idx]) return;
+    const sn = currentPreviewData.safe_name;
+    const m = currentPreviewData.models[idx];
+    const texturedPath = m.textured_path || m.path;
+    const mv = document.getElementById('modelViewer');
+    if (mv) mv.src = `/file/downloads/_previews/${sn}/${texturedPath}`;
+    document.querySelectorAll('.viewer-controls button').forEach((b,i) => {
+        if (i >= 3) b.classList.toggle('active', i - 3 === idx);
+    });
+}
+
+async function embedTexturesUI() {
+    if (!currentPreviewData?.safe_name) return;
+    const sn = currentPreviewData.safe_name;
+    showToast('Embedding textures into GLB...', '');
+    try {
+        const r = await fetch('/api/pipeline/embed-textures', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ safeName: sn })
+        });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error || 'Failed');
+        showToast(`Embedded textures: ${result.processed} model(s) processed`, 'success');
+        // Reload preview data and refresh viewer
+        await loadPreviewData(sn);
+        const mv = document.getElementById('modelViewer');
+        if (mv && currentPreviewData?.models?.[0]) {
+            const m = currentPreviewData.models[0];
+            const texturedPath = m.textured_path || m.path;
+            mv.src = `/file/downloads/_previews/${sn}/${texturedPath}`;
+        }
+    } catch (e) {
+        showToast('Embed error: ' + e.message, 'error');
+    }
+}
+
+async function init3DViewer() {
+    // model-viewer handles initialization automatically via the custom element
+    // This function is kept for tab-switching compatibility
+}
+
+/* ── Export / Repack ── */
+async function renderExportTab() {
+    const area = document.getElementById('exportArea');
+    if (!currentModalAsset?.safe_name) {
+        area.innerHTML = '<div class="extract-prompt"><p>No asset selected</p></div>';
+        return;
+    }
+    const sn = currentModalAsset.safe_name;
+    area.innerHTML = '<div class="extract-prompt"><div class="spinner"></div><p>Loading change tracker...</p></div>';
+
+    try {
+        const r = await fetch(`/api/changes?safeName=${encodeURIComponent(sn)}`);
+        const data = await r.json();
+
+        // Also fetch workspace info for import section
+        const wsR = await fetch(`/api/workspace?safeName=${encodeURIComponent(sn)}`);
+        const wsData = await wsR.json();
+
+        let changesHtml = '';
+        for (const c of data.changes) {
+            const icon = c.type === 'handling' ? '\u{2699}\u{FE0F}' : c.type === 'imported' ? '\u{1F4E5}' : '\u{1F3A8}';
+            const label = c.type === 'handling' ? 'Handling' : c.type === 'imported' ? c.file_name : 'Texture: ' + (c.texture_name||'');
+            const time = new Date(c.timestamp).toLocaleString();
+            changesHtml += `<div class="modal-row">
+                <span class="label">${icon} ${label}</span>
+                <span class="value" style="font-size:12px;color:var(--text-dim)">${time}</span>
+            </div>`;
+        }
+
+        const rpfStatus = data.original_rpf_exists
+            ? `<span style="color:var(--green)">\u{2705} Original dlc.rpf found</span>`
+            : `<span style="color:var(--red)">\u{274C} Original dlc.rpf not found — re-extract the asset</span>`;
+
+        let historyHtml = '';
+        if (data.repack_history?.length) {
+            historyHtml = '<h4 style="margin-top:20px;margin-bottom:8px">Repack History</h4>';
+            for (const h of data.repack_history.slice(-5).reverse()) {
+                const valSt = h.validation?.status === 'ok' ? '\u{2705}' : h.validation?.status === 'warning' ? '\u{26A0}\u{FE0F}' : '\u{274C}';
+                historyHtml += `<div class="modal-row">
+                    <span class="label">${valSt} ${new Date(h.timestamp).toLocaleString()}</span>
+                    <span class="value" style="font-size:12px">${h.changes_applied} change(s)</span>
+                </div>`;
+            }
+        }
+
+        // Imported files list
+        let importedHtml = '';
+        if (wsData.imported_files?.length) {
+            importedHtml = '<div style="margin-top:8px;max-height:120px;overflow-y:auto">';
+            for (const f of wsData.imported_files) {
+                const sizeKb = (f.size / 1024).toFixed(1);
+                importedHtml += `<div class="modal-row" style="font-size:12px">
+                    <span class="label">\u{1F4C4} ${f.name}</span>
+                    <span class="value">${sizeKb} KB</span>
+                </div>`;
+            }
+            importedHtml += '</div>';
+        }
+
+        area.innerHTML = `<div style="padding:24px">
+            <h3 style="margin-bottom:16px">\u{1F4E6} Export & Import</h3>
+            <div style="margin-bottom:16px;font-size:13px">${rpfStatus}</div>
+
+            <div style="display:flex;gap:12px;margin-bottom:20px">
+                <div class="stat-card" style="flex:1"><div class="stat-value">${data.handling_changes}</div><div class="stat-label">Handling</div></div>
+                <div class="stat-card" style="flex:1"><div class="stat-value">${data.texture_changes}</div><div class="stat-label">Textures</div></div>
+                <div class="stat-card" style="flex:1"><div class="stat-value">${(data.changes||[]).filter(c=>c.type==='imported').length}</div><div class="stat-label">Imported</div></div>
+                <div class="stat-card" style="flex:1"><div class="stat-value">${data.total}</div><div class="stat-label">Total</div></div>
+            </div>
+
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px">
+                <h4 style="margin-bottom:12px">\u{1F4E5} Import Modified Files</h4>
+                <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px">
+                    Edit textures in GIMP/Paint.NET, models in Blender, then paste the full path(s) here to import back. One path per line.
+                </p>
+                <textarea id="importPathInput" rows="3" placeholder="C:\\path\\to\\modified_texture.dds&#10;C:\\path\\to\\another_file.ytd"
+                    style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-family:monospace;font-size:12px;resize:vertical"></textarea>
+                <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+                    <button class="btn-action" id="importBtn" onclick="importFiles()">\u{1F4E5} Import</button>
+                    <button class="btn-action" onclick="launchTool('openiv','${sn}')">\u{1F4C2} Open in OpenIV</button>
+                    <button class="btn-action" onclick="launchTool('blender','${sn}')">\u{1F528} Open in Blender</button>
+                    <span style="flex:1"></span>
+                    <span style="font-size:11px;color:var(--text-dim)">${wsData.imported_files?.length || 0} file(s) imported</span>
+                </div>
+                ${importedHtml}
+            </div>
+
+            ${data.total > 0 ? `
+                <h4 style="margin-bottom:8px">Tracked Changes</h4>
+                ${changesHtml}
+                <div style="margin-top:20px;display:flex;gap:12px">
+                    <button class="btn-action" id="repackBtn" onclick="repackVehicle()" ${data.original_rpf_exists ? '' : 'disabled'}>
+                        \u{1F4E6} Repack into DLC.RPF
+                    </button>
+                </div>
+            ` : `
+                <div class="viewer-placeholder" style="height:auto;padding:24px">
+                    <h3>No Changes Yet</h3>
+                    <p style="font-size:13px">Modify <strong>handling.meta</strong>, edit textures externally, or import modified files above.<br>Then repack into a new <code>dlc.rpf</code>.</p>
+                </div>
+            `}
+            ${historyHtml}
+        </div>`;
+    } catch (e) {
+        area.innerHTML = `<div class="extract-prompt"><p style="color:var(--red)">Error loading changes: ${e.message}</p></div>`;
+    }
+}
+
+async function repackVehicle() {
+    if (!currentModalAsset?.safe_name) return;
+    const sn = currentModalAsset.safe_name;
+    const btn = document.getElementById('repackBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span> Repacking...'; }
+    showToast('Repacking into dlc.rpf...', '');
+
+    try {
+        const r = await fetch('/api/pipeline/repack', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ safeName: sn })
+        });
+        const result = await r.json();
+        if (result.status === 'error') throw new Error(result.message || 'Repack failed');
+
+        const valIcon = result.validation?.status === 'ok' ? '\u{2705}' : '\u{26A0}\u{FE0F}';
+        showToast(`${valIcon} Repack complete: ${result.changes_applied}/${result.changes_total} applied`, 'success');
+
+        if (btn) { btn.disabled = false; btn.innerHTML = '\u{2705} Repacked!'; }
+        setTimeout(() => renderExportTab(), 500);
+    } catch (e) {
+        showToast('Repack error: ' + e.message, 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '\u{1F4E6} Repack into DLC.RPF'; }
+    }
+}
+
+/* ── External Tools & Import ── */
+async function launchTool(tool, safeName, fileName) {
+    try {
+        const r = await fetch('/api/tools/launch', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ tool, safeName, fileType: fileName || null })
+        });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error);
+        showToast(`Launched ${tool}${result.file ? ': ' + result.file.split(/[/\\]/).pop() : ''}`, 'success');
+    } catch (e) {
+        showToast(`${tool}: ${e.message}`, 'error');
+    }
+}
+
+async function openTexFolder(safeName) {
+    try {
+        const ws = await (await fetch(`/api/workspace?safeName=${encodeURIComponent(safeName)}`)).json();
+        // Open Explorer via tool launch (we handle _explorer specially server-side is not needed,
+        // just show the path so user can navigate)
+        showToast(`Textures folder: ${ws.preview_dir}\\textures`, 'success');
+    } catch (e) {
+        showToast('Error: ' + e.message, 'error');
+    }
+}
+
+async function importFiles() {
+    if (!currentModalAsset?.safe_name) return;
+    const sn = currentModalAsset.safe_name;
+    const input = document.getElementById('importPathInput');
+    const rawPaths = input?.value?.trim();
+    if (!rawPaths) { showToast('Enter file path(s) to import', 'error'); return; }
+
+    const paths = rawPaths.split('\\n').map(p => p.trim()).filter(Boolean);
+    const btn = document.getElementById('importBtn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span> Importing...'; }
+
+    try {
+        const r = await fetch('/api/import-files', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ safeName: sn, sourcePaths: paths })
+        });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error);
+        showToast(`Imported ${result.imported} file(s)${result.errors.length ? ', ' + result.errors.length + ' error(s)' : ''}`, 'success');
+        if (btn) { btn.disabled = false; btn.innerHTML = '\u{1F4E5} Import'; }
+        input.value = '';
+        renderExportTab();
+    } catch (e) {
+        showToast('Import error: ' + e.message, 'error');
+        if (btn) { btn.disabled = false; btn.innerHTML = '\u{1F4E5} Import'; }
+    }
+}
+
+/* ── Handling Editor ── */
+const HANDLING_FIELDS = {
+    'Performance': [
+        { key: 'fInitialDriveMaxFlatVel', label: 'Top Speed', desc: 'Max speed in km/h (game units)', min: 50, max: 500, step: 5, default: 200 },
+        { key: 'fInitialDriveForce', label: 'Acceleration', desc: 'Engine power multiplier', min: 0.01, max: 2.0, step: 0.01, default: 0.35 },
+        { key: 'fDriveInertia', label: 'Drive Inertia', desc: 'How fast RPMs build', min: 0.1, max: 5.0, step: 0.1, default: 1.0 },
+        { key: 'nInitialDriveGears', label: 'Gears', desc: 'Number of drive gears', min: 1, max: 8, step: 1, default: 6 },
+        { key: 'fClutchChangeRateScaleUpShift', label: 'Upshift Speed', desc: 'Clutch shift rate up', min: 0.5, max: 10, step: 0.1, default: 2.5 },
+        { key: 'fClutchChangeRateScaleDownShift', label: 'Downshift Speed', desc: 'Clutch shift rate down', min: 0.5, max: 10, step: 0.1, default: 2.5 },
+    ],
+    'Braking': [
+        { key: 'fBrakeForce', label: 'Brake Force', desc: 'Braking power', min: 0.1, max: 3.0, step: 0.05, default: 1.0 },
+        { key: 'fBrakeBiasFront', label: 'Brake Bias (Front)', desc: '0.0=rear, 1.0=front', min: 0.0, max: 1.0, step: 0.05, default: 0.65 },
+        { key: 'fHandBrakeForce', label: 'Handbrake Force', desc: 'Handbrake strength', min: 0.1, max: 5.0, step: 0.1, default: 1.0 },
+    ],
+    'Traction': [
+        { key: 'fTractionCurveMax', label: 'Traction Max', desc: 'Max grip at optimal slip', min: 0.5, max: 4.0, step: 0.05, default: 2.5 },
+        { key: 'fTractionCurveMin', label: 'Traction Min', desc: 'Grip at full slip', min: 0.5, max: 3.5, step: 0.05, default: 2.0 },
+        { key: 'fTractionBiasFront', label: 'Traction Bias (Front)', desc: '0.0=rear, 1.0=front', min: 0.0, max: 1.0, step: 0.05, default: 0.48 },
+        { key: 'fTractionLossMult', label: 'Traction Loss', desc: 'Grip loss on surfaces', min: 0.0, max: 2.0, step: 0.05, default: 1.0 },
+    ],
+    'Suspension': [
+        { key: 'fSuspensionForce', label: 'Spring Strength', desc: 'Suspension stiffness', min: 0.5, max: 5.0, step: 0.1, default: 2.0 },
+        { key: 'fSuspensionCompDamp', label: 'Compression Damp', desc: 'Compression damping', min: 0.5, max: 5.0, step: 0.1, default: 1.5 },
+        { key: 'fSuspensionReboundDamp', label: 'Rebound Damp', desc: 'Rebound damping', min: 0.5, max: 5.0, step: 0.1, default: 2.5 },
+        { key: 'fSuspensionUpperLimit', label: 'Upper Limit', desc: 'Max suspension travel up', min: 0.0, max: 0.3, step: 0.01, default: 0.12 },
+        { key: 'fSuspensionLowerLimit', label: 'Lower Limit', desc: 'Max suspension travel down', min: -0.3, max: 0.0, step: 0.01, default: -0.12 },
+        { key: 'fSuspensionRaise', label: 'Ride Height', desc: 'Raise/lower the chassis', min: -0.2, max: 0.2, step: 0.01, default: 0.0 },
+        { key: 'fAntiRollBarForce', label: 'Anti-Roll Bar', desc: 'Body roll resistance', min: 0.0, max: 3.0, step: 0.1, default: 0.8 },
+    ],
+    'Drag & Weight': [
+        { key: 'fMass', label: 'Mass (kg)', desc: 'Vehicle weight', min: 500, max: 5000, step: 50, default: 1500 },
+        { key: 'fInitialDragCoeff', label: 'Drag Coefficient', desc: 'Air resistance', min: 0.1, max: 50, step: 0.5, default: 8.0 },
+        { key: 'fPercentSubmerged', label: '% Submerged', desc: 'How deep before floating', min: 50, max: 100, step: 1, default: 85 },
+        { key: 'vecCentreOfMassOffsetX', label: 'CoM Offset X', desc: 'Center of mass left/right', min: -1, max: 1, step: 0.01, default: 0.0 },
+        { key: 'vecCentreOfMassOffsetY', label: 'CoM Offset Y', desc: 'Center of mass forward/back', min: -1, max: 1, step: 0.01, default: 0.0 },
+        { key: 'vecCentreOfMassOffsetZ', label: 'CoM Offset Z', desc: 'Center of mass height', min: -0.5, max: 0.5, step: 0.01, default: 0.0 },
+    ],
+    'Steering': [
+        { key: 'fSteeringLock', label: 'Steering Lock', desc: 'Max steering angle (deg)', min: 20, max: 70, step: 1, default: 40 },
+    ],
+    'Drivetrain': [
+        { key: 'strDriveTrain', label: 'Drive Type', desc: 'FWD / RWD / AWD', min: 0, max: 2, step: 1, default: 1, enum: ['FWD', 'RWD', 'AWD'] },
+    ]
+};
+
+const HANDLING_PRESETS = {
+    'Stock Sedan': { fInitialDriveMaxFlatVel: 160, fInitialDriveForce: 0.28, fBrakeForce: 0.8, fTractionCurveMax: 2.0, fMass: 1600, nInitialDriveGears: 6, fSteeringLock: 38, strDriveTrain: 0 },
+    'Sports Car': { fInitialDriveMaxFlatVel: 250, fInitialDriveForce: 0.42, fBrakeForce: 1.2, fTractionCurveMax: 2.8, fMass: 1400, nInitialDriveGears: 7, fSteeringLock: 35, strDriveTrain: 1 },
+    'Supercar': { fInitialDriveMaxFlatVel: 340, fInitialDriveForce: 0.55, fBrakeForce: 1.5, fTractionCurveMax: 3.2, fMass: 1300, nInitialDriveGears: 7, fSteeringLock: 32, strDriveTrain: 2 },
+    'Muscle Car': { fInitialDriveMaxFlatVel: 220, fInitialDriveForce: 0.45, fBrakeForce: 0.7, fTractionCurveMax: 1.8, fMass: 1800, nInitialDriveGears: 5, fSteeringLock: 40, strDriveTrain: 1 },
+    'Drift': { fInitialDriveMaxFlatVel: 200, fInitialDriveForce: 0.38, fBrakeForce: 0.6, fTractionCurveMax: 1.5, fTractionCurveMin: 1.0, fTractionLossMult: 1.5, fMass: 1400, nInitialDriveGears: 6, fSteeringLock: 50, strDriveTrain: 1 },
+    'SUV / Truck': { fInitialDriveMaxFlatVel: 140, fInitialDriveForce: 0.32, fBrakeForce: 0.6, fTractionCurveMax: 2.2, fMass: 2800, nInitialDriveGears: 6, fSteeringLock: 40, fSuspensionForce: 1.5, fSuspensionRaise: 0.08, strDriveTrain: 2 },
+    'Motorcycle': { fInitialDriveMaxFlatVel: 280, fInitialDriveForce: 0.5, fBrakeForce: 1.0, fTractionCurveMax: 2.5, fMass: 250, nInitialDriveGears: 6, fSteeringLock: 45, strDriveTrain: 1 },
+};
+
+let handlingData = {};
+let handlingModelName = ''; // Real model name from RPF (e.g. 'm4csl23sx')
+
+function initHandlingDefaults() {
+    handlingData = {};
+    for (const fields of Object.values(HANDLING_FIELDS)) {
+        for (const f of fields) handlingData[f.key] = f.default;
+    }
+}
+
+async function renderHandlingTab() {
+    const area = document.getElementById('handlingArea');
+    if (!area) return;
+    if (!Object.keys(handlingData).length) initHandlingDefaults();
+
+    // Load saved handling for this asset (only once)
+    if (currentModalAsset?.safe_name && !handlingData._loaded) {
+        handlingData._loaded = true;
+        await loadHandlingData(currentModalAsset.safe_name);
+    }
+
+    let html = '<div class="handling-editor">';
+
+    // Model name display
+    if (handlingModelName) {
+        html += `<div style="padding:8px 12px;background:rgba(0,255,100,0.1);border:1px solid rgba(0,255,100,0.3);border-radius:8px;margin-bottom:12px;font-size:13px">
+            <strong>Model ID:</strong> <code>${handlingModelName}</code> (from dlc.rpf) &mdash; values pre-loaded from original handling.meta
+        </div>`;
+    }
+
+    // Presets bar
+    html += '<div class="handling-preset-bar">';
+    for (const name of Object.keys(HANDLING_PRESETS)) {
+        html += `<button class="handling-preset" onclick="applyHandlingPreset('${name}', this)">${name}</button>`;
+    }
+    html += '</div>';
+
+    // Field sections
+    for (const [section, fields] of Object.entries(HANDLING_FIELDS)) {
+        html += `<div class="handling-section">
+            <div class="handling-section-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                <span>${section}</span><span class="chevron">\u25BC</span>
+            </div><div class="handling-fields">`;
+        for (const f of fields) {
+            const val = handlingData[f.key] ?? f.default;
+            if (f.enum) {
+                html += `<div class="handling-field">
+                    <label><span class="field-name">${f.label}</span>${f.desc}</label>
+                    <select style="grid-column:span 2;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:6px;font-size:13px"
+                        onchange="handlingData['${f.key}']=parseInt(this.value)">
+                        ${f.enum.map((e,i) => `<option value="${i}" ${val===i?'selected':''}>${e}</option>`).join('')}
+                    </select></div>`;
+            } else {
+                html += `<div class="handling-field">
+                    <label><span class="field-name">${f.label}</span>${f.desc}</label>
+                    <input type="range" min="${f.min}" max="${f.max}" step="${f.step}" value="${val}"
+                        oninput="handlingData['${f.key}']=parseFloat(this.value);this.nextElementSibling.value=this.value">
+                    <input type="number" min="${f.min}" max="${f.max}" step="${f.step}" value="${val}"
+                        onchange="handlingData['${f.key}']=parseFloat(this.value);this.previousElementSibling.value=this.value">
+                </div>`;
+            }
+        }
+        html += '</div></div>';
+    }
+
+    // Action buttons
+    html += `<div class="handling-actions">
+        <button class="btn-action success" onclick="saveHandling()">\u{1F4BE} Save Handling</button>
+        <button class="btn-action" onclick="exportHandlingMeta()">\u{1F4E4} Export handling.meta</button>
+        <button class="btn-action" onclick="packHandlingIntoRPF()" style="background:var(--red);color:#fff">\u{1F4E6} Pack into dlc.rpf</button>
+        <button class="btn-action" onclick="exportHandlingLua()" style="background:var(--orange);color:#000">\u{1F4DC} Export RageMP JS</button>
+        <button class="btn-action danger" onclick="initHandlingDefaults();renderHandlingTab()">\u{1F504} Reset to Defaults</button>
+    </div>`;
+
+    html += '</div>';
+    area.innerHTML = html;
+}
+
+function applyHandlingPreset(name, btn) {
+    const preset = HANDLING_PRESETS[name];
+    if (!preset) return;
+    if (!Object.keys(handlingData).length) initHandlingDefaults();
+    Object.assign(handlingData, preset);
+    document.querySelectorAll('.handling-preset').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderHandlingTab();
+    showToast(`Applied preset: ${name}`, 'success');
+}
+
+async function loadHandlingData(safeName) {
+    // First load original values from RPF (real vehicle defaults)
+    try {
+        const origR = await fetch(`/api/handling-original/${encodeURIComponent(safeName)}`);
+        if (origR.ok) {
+            const orig = await origR.json();
+            if (orig.modelName) handlingModelName = orig.modelName;
+            if (orig.fields) {
+                // Map RPF field names to our editor keys
+                for (const [key, val] of Object.entries(orig.fields)) {
+                    if (key in handlingData && typeof val === 'number') {
+                        handlingData[key] = val;
+                    }
+                }
+                // Handle drivetrain from fDriveBiasFront
+                if ('fDriveBiasFront' in orig.fields) {
+                    const bias = orig.fields.fDriveBiasFront;
+                    if (bias >= 0.9) handlingData.strDriveTrain = 0; // FWD
+                    else if (bias <= 0.1) handlingData.strDriveTrain = 1; // RWD
+                    else handlingData.strDriveTrain = 2; // AWD
+                }
+            }
+        }
+    } catch (e) { console.log('No original handling from RPF:', e); }
+
+    // Then overlay any user-saved overrides
+    try {
+        const r = await fetch(`/api/handling/${encodeURIComponent(safeName)}`);
+        if (r.ok) {
+            const saved = await r.json();
+            if (saved && Object.keys(saved).length) {
+                Object.assign(handlingData, saved);
+                if (saved._modelName) handlingModelName = saved._modelName;
+            }
+        }
+    } catch (e) {}
+}
+
+async function saveHandling() {
+    if (!currentModalAsset?.safe_name) return;
+    try {
+        const r = await fetch('/api/handling', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({ safeName: currentModalAsset.safe_name, handling: handlingData })
+        });
+        if (!r.ok) throw new Error('Save failed');
+        showToast('Handling saved!', 'success');
+    } catch (e) {
+        showToast('Error saving: ' + e.message, 'error');
+    }
+}
+
+function getHandlingModelName() {
+    // Use the real model name from the RPF if available
+    if (handlingModelName) return handlingModelName;
+    const name = currentModalAsset?.safe_name || currentModalAsset?.name || 'vehicle';
+    return name.replace(/[^a-zA-Z0-9]/g, '').substring(0, 16).toLowerCase();
+}
+
+function generateHandlingXml() {
+    const d = handlingData;
+    const modelName = getHandlingModelName();
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<CHandlingDataMgr>
+  <HandlingData>
+    <Item type="CHandlingData">
+      <handlingName>${modelName}</handlingName>
+      <fMass value="${(d.fMass||1500).toFixed(6)}" />
+      <fInitialDragCoeff value="${(d.fInitialDragCoeff||8).toFixed(6)}" />
+      <fPercentSubmerged value="${(d.fPercentSubmerged||85).toFixed(6)}" />
+      <vecCentreOfMassOffset x="${(d.vecCentreOfMassOffsetX||0).toFixed(6)}" y="${(d.vecCentreOfMassOffsetY||0).toFixed(6)}" z="${(d.vecCentreOfMassOffsetZ||0).toFixed(6)}" />
+      <vecInertiaMultiplier x="1.000000" y="1.000000" z="1.000000" />
+      <fDriveBiasFront value="${d.strDriveTrain===0?'1.000000':d.strDriveTrain===2?'0.500000':'0.000000'}" />
+      <nInitialDriveGears value="${d.nInitialDriveGears||6}" />
+      <fInitialDriveForce value="${(d.fInitialDriveForce||0.35).toFixed(6)}" />
+      <fDriveInertia value="${(d.fDriveInertia||1.0).toFixed(6)}" />
+      <fClutchChangeRateScaleUpShift value="${(d.fClutchChangeRateScaleUpShift||2.5).toFixed(6)}" />
+      <fClutchChangeRateScaleDownShift value="${(d.fClutchChangeRateScaleDownShift||2.5).toFixed(6)}" />
+      <fInitialDriveMaxFlatVel value="${(d.fInitialDriveMaxFlatVel||200).toFixed(6)}" />
+      <fBrakeForce value="${(d.fBrakeForce||1.0).toFixed(6)}" />
+      <fBrakeBiasFront value="${(d.fBrakeBiasFront||0.65).toFixed(6)}" />
+      <fHandBrakeForce value="${(d.fHandBrakeForce||1.0).toFixed(6)}" />
+      <fSteeringLock value="${(d.fSteeringLock||40).toFixed(6)}" />
+      <fTractionCurveMax value="${(d.fTractionCurveMax||2.5).toFixed(6)}" />
+      <fTractionCurveMin value="${(d.fTractionCurveMin||2.0).toFixed(6)}" />
+      <fTractionBiasFront value="${(d.fTractionBiasFront||0.48).toFixed(6)}" />
+      <fTractionLossMult value="${(d.fTractionLossMult||1.0).toFixed(6)}" />
+      <fSuspensionForce value="${(d.fSuspensionForce||2.0).toFixed(6)}" />
+      <fSuspensionCompDamp value="${(d.fSuspensionCompDamp||1.5).toFixed(6)}" />
+      <fSuspensionReboundDamp value="${(d.fSuspensionReboundDamp||2.5).toFixed(6)}" />
+      <fSuspensionUpperLimit value="${(d.fSuspensionUpperLimit||0.12).toFixed(6)}" />
+      <fSuspensionLowerLimit value="${(d.fSuspensionLowerLimit||-0.12).toFixed(6)}" />
+      <fSuspensionRaise value="${(d.fSuspensionRaise||0).toFixed(6)}" />
+      <fAntiRollBarForce value="${(d.fAntiRollBarForce||0.8).toFixed(6)}" />
+    </Item>
+  </HandlingData>
+</CHandlingDataMgr>`;
+}
+
+function exportHandlingMeta() {
+    const modelName = getHandlingModelName();
+    downloadFile(`${modelName}_handling.meta`, generateHandlingXml(), 'application/xml');
+}
+
+async function packHandlingIntoRPF() {
+    if (!currentModalAsset?.safe_name) return;
+    const xml = generateHandlingXml();
+
+    if (!confirm('This will modify the dlc.rpf file for this asset.\nA backup (.rpf.bak) will be created automatically.\n\nContinue?')) return;
+
+    showToast('Packing handling.meta into dlc.rpf...', '');
+    try {
+        const r = await fetch('/api/rpf/pack-handling', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                safeName: currentModalAsset.safe_name,
+                handlingXml: xml
+            })
+        });
+        const result = await r.json();
+        if (!r.ok) throw new Error(result.error || 'Pack failed');
+        showToast(result.message || 'handling.meta packed into dlc.rpf!', 'success');
+    } catch (e) {
+        showToast('RPF pack error: ' + e.message, 'error');
+    }
+}
+
+function exportHandlingLua() {
+    const d = handlingData;
+    const modelName = getHandlingModelName();
+    const driveTypes = ['FWD', 'RWD', 'AWD'];
+    const lua = `-- RageMP Vehicle Handling Script for ${modelName}
+-- Paste this into your server-side scripts
+
+mp.events.add('playerEnterVehicle', (player, vehicle) => {
+    if (vehicle.model === mp.joaat('${modelName.toLowerCase()}')) {
+        // Performance
+        vehicle.setHandling('fInitialDriveMaxFlatVel', ${(d.fInitialDriveMaxFlatVel||200).toFixed(2)});
+        vehicle.setHandling('fInitialDriveForce', ${(d.fInitialDriveForce||0.35).toFixed(4)});
+        vehicle.setHandling('fDriveInertia', ${(d.fDriveInertia||1.0).toFixed(4)});
+        vehicle.setHandling('nInitialDriveGears', ${d.nInitialDriveGears||6});
+
+        // Braking
+        vehicle.setHandling('fBrakeForce', ${(d.fBrakeForce||1.0).toFixed(4)});
+        vehicle.setHandling('fBrakeBiasFront', ${(d.fBrakeBiasFront||0.65).toFixed(4)});
+        vehicle.setHandling('fHandBrakeForce', ${(d.fHandBrakeForce||1.0).toFixed(4)});
+
+        // Traction
+        vehicle.setHandling('fTractionCurveMax', ${(d.fTractionCurveMax||2.5).toFixed(4)});
+        vehicle.setHandling('fTractionCurveMin', ${(d.fTractionCurveMin||2.0).toFixed(4)});
+        vehicle.setHandling('fTractionBiasFront', ${(d.fTractionBiasFront||0.48).toFixed(4)});
+        vehicle.setHandling('fTractionLossMult', ${(d.fTractionLossMult||1.0).toFixed(4)});
+
+        // Suspension
+        vehicle.setHandling('fSuspensionForce', ${(d.fSuspensionForce||2.0).toFixed(4)});
+        vehicle.setHandling('fSuspensionCompDamp', ${(d.fSuspensionCompDamp||1.5).toFixed(4)});
+        vehicle.setHandling('fSuspensionReboundDamp', ${(d.fSuspensionReboundDamp||2.5).toFixed(4)});
+        vehicle.setHandling('fAntiRollBarForce', ${(d.fAntiRollBarForce||0.8).toFixed(4)});
+
+        // Weight & Drag
+        vehicle.setHandling('fMass', ${(d.fMass||1500).toFixed(2)});
+        vehicle.setHandling('fInitialDragCoeff', ${(d.fInitialDragCoeff||8.0).toFixed(4)});
+
+        // Steering
+        vehicle.setHandling('fSteeringLock', ${(d.fSteeringLock||40).toFixed(4)});
+
+        player.outputChatBox('!{#6c5ce7}[Handling] Applied custom handling for ${modelName}');
+    }
+});
+`;
+    downloadFile(`${modelName}_handling.js`, lua, 'text/javascript');
+}
+
+function downloadFile(filename, content, type) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Downloaded: ${filename}`, 'success');
+}
+
+/* ── Keyboard ── */
+document.addEventListener("keydown", e => {
+    if (document.getElementById('texZoom').classList.contains('visible')) {
+        if (e.key==="Escape") closeTexZoom(); return;
+    }
+    if (e.key==="Escape") closeModal();
+    if (e.key==="ArrowLeft" && gImgs.length>1) galleryGo(gIdx-1);
+    if (e.key==="ArrowRight" && gImgs.length>1) galleryGo(gIdx+1);
+});
+
+loadAssets();
+</script>
+</body>
+</html>

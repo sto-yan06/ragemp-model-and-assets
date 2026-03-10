@@ -1,0 +1,48 @@
+# Downloads and generated assets (large, user-specific)
+downloads/*
+!downloads/_metadata/
+!downloads/.gitkeep
+assets/
+ai_textures/output/
+ai_textures/variations/
+client_packages/
+packages/
+logs/*
+!logs/.gitkeep
+
+# Exported RPFs (large binary, user-specific)
+new_dlc_exported/*
+!new_dlc_exported/.gitkeep
+
+# Node
+node_modules/
+package-lock.json
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.env
+
+# Archives
+*.zip
+*.rar
+*.7z
+
+# GTA assets (large binary files)
+*.yft
+*.ytd
+*.ydr
+*.ydd
+*.ymap
+*.ytyp
+*.rpf
+
+# OS
+Thumbs.db
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp

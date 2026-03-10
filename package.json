@@ -1,0 +1,24 @@
+{
+  "name": "ragemp-assets-pipeline",
+  "version": "1.0.0",
+  "description": "Automated RageMP asset pipeline - scraping, processing, packaging, and deployment",
+  "main": "resource_builder/build_resources.js",
+  "scripts": {
+    "build": "node resource_builder/build_resources.js",
+    "spawn-scripts": "node server_scripts/generate_spawns.js",
+    "houses": "node server_scripts/house_loader.js",
+    "full-pipeline": "node orchestrator.js",
+    "preview": "node preview/server.js"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/extensions": "^4.3.0",
+    "@gltf-transform/functions": "^4.3.0",
+    "chalk": "^4.1.2",
+    "fs-extra": "^11.2.0",
+    "glob": "^10.3.0",
+    "sharp": "^0.34.5",
+    "winston": "^3.11.0"
+  },
+  "license": "MIT"
+}
