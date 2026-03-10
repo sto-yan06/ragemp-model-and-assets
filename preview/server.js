@@ -31,6 +31,60 @@ function loadAssetIndex() {
 }
 
 /**
+ * Find the dlc.rpf path for a given vehicle safeName.
+ * Checks multiple locations in priority order.
+ * Returns the full path or null if not found.
+ */
+function findRpfPath(safeName) {
+    const previewDir = path.join(ROOT_DIR, "downloads", "_previews", safeName);
+
+    // 1. manifest.rpf_source (set during extraction)
+    const manifestPath = path.join(previewDir, "manifest.json");
+    if (fs.existsSync(manifestPath)) {
+        try {
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+            if (manifest.rpf_source && fs.existsSync(manifest.rpf_source)) {
+                return manifest.rpf_source;
+            }
+        } catch (e) {}
+    }
+
+    // 2. original/dlc.rpf (standard extraction location)
+    let rpfPath = path.join(previewDir, "original", "dlc.rpf");
+    if (fs.existsSync(rpfPath)) return rpfPath;
+
+    // 3. dlc.rpf in preview dir root
+    rpfPath = path.join(previewDir, "dlc.rpf");
+    if (fs.existsSync(rpfPath)) return rpfPath;
+
+    // 4. rpf_files path from manifest
+    if (fs.existsSync(manifestPath)) {
+        try {
+            const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+            const rpfEntry = (manifest.rpf_files || []).find(r => r.name.toLowerCase() === "dlc.rpf");
+            if (rpfEntry) {
+                rpfPath = path.join(previewDir, "extracted", rpfEntry.path);
+                if (fs.existsSync(rpfPath)) return rpfPath;
+                rpfPath = path.join(previewDir, rpfEntry.path);
+                if (fs.existsSync(rpfPath)) return rpfPath;
+            }
+        } catch (e) {}
+    }
+
+    // 5. Recursive scan of preview dir
+    try {
+        const files = fs.readdirSync(previewDir, { recursive: true });
+        for (const f of files) {
+            if (f.toString().toLowerCase().endsWith("dlc.rpf")) {
+                return path.join(previewDir, f.toString());
+            }
+        }
+    } catch (e) {}
+
+    return null;
+}
+
+/**
  * Scan downloads directory for all files even without metadata
  */
 function scanDownloads() {
@@ -381,24 +435,7 @@ for child in item:
 
 print(json.dumps(result))
 `,
-            ...(() => {
-                // Find RPF path
-                const manifestPath = path.join(ROOT_DIR, "downloads", "_previews", safeName, "manifest.json");
-                if (!fs.existsSync(manifestPath)) return [""];
-                const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-                const rpfEntry = (manifest.rpf_files || []).find(r => r.name.toLowerCase() === "dlc.rpf");
-                if (!rpfEntry) return [""];
-
-                // Check extracted locations
-                let rpfPath = path.join(ROOT_DIR, "downloads", "_previews", safeName, "dlc.rpf");
-                if (!fs.existsSync(rpfPath)) {
-                    rpfPath = path.join(ROOT_DIR, "downloads", "_previews", safeName, "extracted", rpfEntry.path);
-                }
-                if (!fs.existsSync(rpfPath)) {
-                    rpfPath = path.join(ROOT_DIR, "downloads", "_previews", safeName, rpfEntry.path);
-                }
-                return [rpfPath];
-            })()
+            findRpfPath(safeName) || ""
         ], { cwd: ROOT_DIR, timeout: 30000 }, (err, stdout, stderr) => {
             if (err) {
                 res.writeHead(500, { "Content-Type": "application/json" });
@@ -407,10 +444,12 @@ print(json.dumps(result))
             }
             try {
                 const result = JSON.parse(stdout.trim());
-                // Cache for future use
-                const previewDir = path.join(ROOT_DIR, "downloads", "_previews", safeName);
-                if (fs.existsSync(previewDir)) {
-                    fs.writeFileSync(cachedPath, JSON.stringify(result, null, 2));
+                // Only cache successful results (not errors)
+                if (!result.error) {
+                    const previewDir = path.join(ROOT_DIR, "downloads", "_previews", safeName);
+                    if (fs.existsSync(previewDir)) {
+                        fs.writeFileSync(cachedPath, JSON.stringify(result, null, 2));
+                    }
                 }
                 res.writeHead(200, { "Content-Type": "application/json" });
                 res.end(JSON.stringify(result));
@@ -513,94 +552,16 @@ print(json.dumps(result))
                     return;
                 }
 
-                // Find the manifest for RPF info
-                const manifestPath = path.join(ROOT_DIR, "downloads", "_previews", safeName, "manifest.json");
-                if (!fs.existsSync(manifestPath)) {
-                    res.writeHead(404, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: "No manifest found. Extract the asset first." }));
-                    return;
-                }
-
-                const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-                const rpfEntry = (manifest.rpf_files || []).find(r => r.name.toLowerCase() === "dlc.rpf");
-                if (!rpfEntry) {
-                    res.writeHead(404, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: "No dlc.rpf found in this asset." }));
-                    return;
-                }
-
-                // Find the original archive from the asset index
-                const assetIndex = loadAssetIndex();
-                const asset = (assetIndex.assets || []).find(a => a.safe_name === safeName);
-                if (!asset || !asset.filepath || !fs.existsSync(asset.filepath)) {
-                    res.writeHead(404, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: "Original archive not found." }));
-                    return;
-                }
-
                 const previewDir = path.join(ROOT_DIR, "downloads", "_previews", safeName);
 
-                // Check if RPF already extracted to preview dir
-                let rpfPath = path.join(previewDir, "dlc.rpf");
-                if (!fs.existsSync(rpfPath)) {
-                    // Extract dlc.rpf from the original archive
-                    console.log(`[RPF] Extracting dlc.rpf from ${asset.filepath}`);
-                    const archiveExt = path.extname(asset.filepath).toLowerCase();
-                    const rpfInternalPath = rpfEntry.path;
-
-                    try {
-                        if (archiveExt === ".zip") {
-                            // Use Python to extract just the RPF
-                            const { execFileSync } = require("child_process");
-                            const pythonCmd = process.platform === "win32" ? "python" : "python3";
-                            execFileSync(pythonCmd, [
-                                "-c",
-                                `import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); z.extract(sys.argv[2],sys.argv[3]); print("OK")`,
-                                asset.filepath, rpfInternalPath, previewDir
-                            ], { cwd: ROOT_DIR, timeout: 120000 });
-                            // Move extracted RPF to preview root
-                            const extractedRpf = path.join(previewDir, rpfInternalPath);
-                            if (fs.existsSync(extractedRpf)) {
-                                fs.copyFileSync(extractedRpf, rpfPath);
-                                // Clean up nested dirs
-                                const topDir = rpfInternalPath.split("/")[0].split("\\")[0];
-                                const cleanDir = path.join(previewDir, topDir);
-                                if (fs.existsSync(cleanDir) && fs.statSync(cleanDir).isDirectory()) {
-                                    fs.rmSync(cleanDir, { recursive: true, force: true });
-                                }
-                            }
-                        } else if (archiveExt === ".7z") {
-                            const { execFileSync } = require("child_process");
-                            const pythonCmd = process.platform === "win32" ? "python" : "python3";
-                            execFileSync(pythonCmd, [
-                                "-c",
-                                `import py7zr,sys,shutil; z=py7zr.SevenZipFile(sys.argv[1]); z.extract(targets=[sys.argv[2]],path=sys.argv[3]); print("OK")`,
-                                asset.filepath, rpfInternalPath, previewDir
-                            ], { cwd: ROOT_DIR, timeout: 120000 });
-                            const extractedRpf = path.join(previewDir, rpfInternalPath);
-                            if (fs.existsSync(extractedRpf)) {
-                                fs.copyFileSync(extractedRpf, rpfPath);
-                                const topDir = rpfInternalPath.split("/")[0].split("\\")[0];
-                                const cleanDir = path.join(previewDir, topDir);
-                                if (fs.existsSync(cleanDir) && fs.statSync(cleanDir).isDirectory()) {
-                                    fs.rmSync(cleanDir, { recursive: true, force: true });
-                                }
-                            }
-                        }
-                    } catch (extractErr) {
-                        console.error(`[RPF] Extraction error: ${extractErr.message}`);
-                        res.writeHead(500, { "Content-Type": "application/json" });
-                        res.end(JSON.stringify({ error: "Failed to extract dlc.rpf from archive: " + extractErr.message }));
-                        return;
-                    }
-
-                    if (!fs.existsSync(rpfPath)) {
-                        res.writeHead(500, { "Content-Type": "application/json" });
-                        res.end(JSON.stringify({ error: "Failed to extract dlc.rpf from archive." }));
-                        return;
-                    }
-                    console.log(`[RPF] Extracted dlc.rpf (${(fs.statSync(rpfPath).size / 1048576).toFixed(1)} MB)`);
+                // Find RPF using shared helper
+                let rpfPath = findRpfPath(safeName);
+                if (!rpfPath) {
+                    res.writeHead(404, { "Content-Type": "application/json" });
+                    res.end(JSON.stringify({ error: "dlc.rpf not found. Re-extract the asset first." }));
+                    return;
                 }
+                console.log(`[RPF] Found RPF at: ${rpfPath}`);
 
                 // Write handling.meta XML
                 const handlingMetaPath = path.join(previewDir, "handling.meta");
@@ -989,138 +950,39 @@ print(json.dumps(result))
             return;
         }
         const changesFile = path.join(ROOT_DIR, "downloads", "_previews", safeName, "changes.json");
+        // Always try to find the RPF regardless of changes.json state
+        const foundRpf = findRpfPath(safeName);
+
         if (fs.existsSync(changesFile)) {
             try {
                 const data = JSON.parse(fs.readFileSync(changesFile, "utf8"));
                 const changes = data.changes || [];
                 const handling = changes.filter(c => c.type === "handling");
                 const textures = changes.filter(c => c.type === "texture");
+                const rpfPath = data.original_rpf && fs.existsSync(data.original_rpf)
+                    ? data.original_rpf : foundRpf;
                 res.writeHead(200, { "Content-Type": "application/json" });
                 res.end(JSON.stringify({
                     total: changes.length,
                     handling_changes: handling.length,
                     texture_changes: textures.length,
                     changes,
-                    original_rpf: data.original_rpf || null,
-                    original_rpf_exists: !!(data.original_rpf && fs.existsSync(data.original_rpf)),
+                    original_rpf: rpfPath || null,
+                    original_rpf_exists: !!rpfPath,
                     last_modified: data.last_modified,
                     repack_history: data.repack_history || [],
                 }));
             } catch (e) {
                 res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ total: 0, changes: [], handling_changes: 0, texture_changes: 0 }));
+                res.end(JSON.stringify({ total: 0, changes: [], handling_changes: 0, texture_changes: 0, original_rpf: foundRpf, original_rpf_exists: !!foundRpf }));
             }
         } else {
             res.writeHead(200, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ total: 0, changes: [], handling_changes: 0, texture_changes: 0 }));
+            res.end(JSON.stringify({ total: 0, changes: [], handling_changes: 0, texture_changes: 0, original_rpf: foundRpf, original_rpf_exists: !!foundRpf }));
         }
         return;
     }
 
-    // GET /api/tools - list external tools and their availability
-    if (pathname === "/api/tools" && req.method === "GET") {
-        const config = loadConfig();
-        const tools = config.external_tools || {};
-        const result = {};
-        for (const [key, toolPath] of Object.entries(tools)) {
-            result[key] = {
-                path: toolPath,
-                exists: fs.existsSync(toolPath),
-                name: key.replace(/_path$/, '').replace(/_/g, ' ')
-            };
-        }
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify(result));
-        return;
-    }
-
-    // POST /api/tools/launch - launch an external tool with a specific file
-    if (pathname === "/api/tools/launch" && req.method === "POST") {
-        let body = "";
-        req.on("data", chunk => { body += chunk; });
-        req.on("end", () => {
-            try {
-                const { tool, safeName, fileType } = JSON.parse(body);
-                const config = loadConfig();
-                const tools = config.external_tools || {};
-                const toolPath = tools[tool + "_path"];
-
-                if (!toolPath) {
-                    res.writeHead(400, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: `Tool '${tool}' not configured in config.json` }));
-                    return;
-                }
-                if (!fs.existsSync(toolPath)) {
-                    res.writeHead(404, { "Content-Type": "application/json" });
-                    res.end(JSON.stringify({ error: `Tool not found at: ${toolPath}. Update external_tools in config.json` }));
-                    return;
-                }
-
-                const previewDir = path.join(ROOT_DIR, "downloads", "_previews", safeName);
-                let targetFile = previewDir;
-                let args = [];
-
-                if (tool === "blender") {
-                    // Open the GLB model in Blender
-                    const modelsDir = path.join(previewDir, "models");
-                    const glbs = fs.existsSync(modelsDir)
-                        ? fs.readdirSync(modelsDir).filter(f => f.endsWith('.glb') && !f.includes('_textured') && !f.includes('_clean'))
-                        : [];
-                    if (glbs.length > 0) {
-                        targetFile = path.join(modelsDir, glbs[0]);
-                        // Blender: import GLB via Python script
-                        args = ["--python-expr",
-                            `import bpy; bpy.ops.import_scene.gltf(filepath=r'${targetFile.replace(/\\/g, "\\\\")}')`,
-                        ];
-                    }
-                } else if (tool === "gimp" || tool === "paintnet") {
-                    // Open textures folder or specific texture
-                    const texDir = path.join(previewDir, "textures");
-                    if (fileType && fs.existsSync(path.join(texDir, fileType))) {
-                        targetFile = path.join(texDir, fileType);
-                        args = [targetFile];
-                    } else if (fs.existsSync(texDir)) {
-                        // Open first DDS/PNG texture found
-                        const texFiles = fs.readdirSync(texDir).filter(f => /\.(png|dds|tga)$/i.test(f));
-                        if (texFiles.length > 0) {
-                            targetFile = path.join(texDir, texFiles[0]);
-                            args = [targetFile];
-                        }
-                    }
-                } else if (tool === "openiv") {
-                    // Open the original dlc.rpf in OpenIV
-                    const manifestPath = path.join(previewDir, "manifest.json");
-                    if (fs.existsSync(manifestPath)) {
-                        try {
-                            const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-                            if (manifest.rpf_source && fs.existsSync(manifest.rpf_source)) {
-                                args = [manifest.rpf_source];
-                            }
-                        } catch (e) {}
-                    }
-                    // Fallback: open the original RPF copy
-                    if (args.length === 0) {
-                        const origRpf = path.join(previewDir, "original", "dlc.rpf");
-                        if (fs.existsSync(origRpf)) args = [origRpf];
-                    }
-                } else if (tool === "codewalker") {
-                    args = []; // Just open CodeWalker
-                }
-
-                console.log(`[Tools] Launching ${tool}: "${toolPath}" ${args.join(' ')}`);
-                const { spawn } = require("child_process");
-                const child = spawn(toolPath, args, { detached: true, stdio: "ignore" });
-                child.unref();
-
-                res.writeHead(200, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ success: true, tool, file: args[0] || null }));
-            } catch (e) {
-                res.writeHead(500, { "Content-Type": "application/json" });
-                res.end(JSON.stringify({ error: e.message }));
-            }
-        });
-        return;
-    }
 
     // POST /api/import-files - import modified files back into the pipeline
     if (pathname === "/api/import-files" && req.method === "POST") {

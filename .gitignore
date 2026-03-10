@@ -1,14 +1,17 @@
 # Downloads and generated assets (large, user-specific)
 downloads/*
-!downloads/_metadata/
 !downloads/.gitkeep
+!downloads/_metadata/
+downloads/_metadata/*
+!downloads/_metadata/.gitkeep
 assets/
-ai_textures/output/
-ai_textures/variations/
 client_packages/
 packages/
 logs/*
 !logs/.gitkeep
+
+# Scraper history (user-specific)
+scraper/download_history.json
 
 # Exported RPFs (large binary, user-specific)
 new_dlc_exported/*
@@ -24,7 +27,7 @@ __pycache__/
 .venv/
 .env
 
-# Archives
+# Archives (downloaded files)
 *.zip
 *.rar
 *.7z

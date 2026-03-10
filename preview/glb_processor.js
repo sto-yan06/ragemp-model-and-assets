@@ -276,9 +276,9 @@ async function removeLogos(glbPath, outputPath) {
 async function rotateZupToYup(doc) {
     const root = doc.getRoot();
     const scenes = root.listScenes();
-    // Quaternion for +90deg rotation around X: [sin(45), 0, 0, cos(45)]
-    // Maps: GTA Z-up -> glTF Y-up, GTA Y-forward -> glTF -Z (into screen)
-    const q = [0.7071068, 0, 0, 0.7071068];
+    // Quaternion for -90deg rotation around X: [-sin(45), 0, 0, cos(45)]
+    // Maps: GTA Z-up -> glTF Y-up, GTA Y-forward -> glTF -Z (forward)
+    const q = [-0.7071068, 0, 0, 0.7071068];
 
     for (const scene of scenes) {
         for (const node of scene.listChildren()) {
@@ -334,6 +334,16 @@ async function processPreviewDir(previewDir, options = {}) {
                 // No textures, just copy
                 fs.copyFileSync(glbPath, texturedPath);
                 results.push({ file: glbFile, embedded: 0, output: texturedPath });
+            }
+
+            // Step 1b: Apply Z-up -> Y-up rotation
+            try {
+                const rotDoc = await readGLB(texturedPath);
+                await rotateZupToYup(rotDoc);
+                await writeGLB(rotDoc, texturedPath);
+                console.log(`  Rotated ${glbFile} (Z-up -> Y-up)`);
+            } catch (re) {
+                console.error(`  Rotation failed for ${glbFile}: ${re.message}`);
             }
 
             // Step 2: Remove logos if requested
@@ -409,8 +419,48 @@ async function main() {
                 console.log(JSON.stringify(result, null, 2));
                 break;
             }
+            case 'rotate': {
+                // Batch rotate GLBs: node glb_processor.js rotate <dir_or_file>
+                const [, target] = args;
+                if (!target) {
+                    console.error('Usage: node glb_processor.js rotate <glb_file_or_preview_dir>');
+                    process.exit(1);
+                }
+                if (target.endsWith('.glb')) {
+                    const doc = await readGLB(target);
+                    await rotateZupToYup(doc);
+                    await writeGLB(doc, target);
+                    console.log(`Rotated: ${target}`);
+                } else {
+                    // Treat as preview root dir, find all _textured.glb recursively
+                    const glob = require('fs');
+                    function findGlbs(dir) {
+                        let results = [];
+                        for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                            const full = path.join(dir, entry.name);
+                            if (entry.isDirectory()) results = results.concat(findGlbs(full));
+                            else if (entry.name.endsWith('_textured.glb')) results.push(full);
+                        }
+                        return results;
+                    }
+                    const files = findGlbs(target);
+                    console.log(`Found ${files.length} textured GLBs to rotate`);
+                    for (const f of files) {
+                        try {
+                            const doc = await readGLB(f);
+                            await rotateZupToYup(doc);
+                            await writeGLB(doc, f);
+                            console.log(`  OK: ${path.relative(target, f)}`);
+                        } catch (e) {
+                            console.error(`  FAIL: ${path.relative(target, f)}: ${e.message}`);
+                        }
+                    }
+                    console.log('Done');
+                }
+                break;
+            }
             default:
-                console.error('Commands: embed, remove-logos, process');
+                console.error('Commands: embed, remove-logos, process, rotate');
                 process.exit(1);
         }
     } catch (e) {

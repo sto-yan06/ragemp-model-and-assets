@@ -347,6 +347,28 @@ def extract_preview_for_asset(asset, config=None):
     if not extract_archive(filepath, extract_dir):
         return None
 
+    # Step 1.5: Recursively extract nested archives (.zip, .rar, .7z inside the main archive)
+    ARCHIVE_EXTS = {'.zip', '.rar', '.7z'}
+    max_depth = 3  # prevent infinite recursion
+    for depth in range(max_depth):
+        nested_archives = []
+        for root, _, fnames in os.walk(extract_dir):
+            for fn in fnames:
+                if os.path.splitext(fn)[1].lower() in ARCHIVE_EXTS:
+                    nested_archives.append(os.path.join(root, fn))
+        if not nested_archives:
+            break
+        logger.info(f"  Found {len(nested_archives)} nested archive(s) (depth {depth+1}), extracting...")
+        for na in nested_archives:
+            na_name = os.path.splitext(os.path.basename(na))[0]
+            na_dir = os.path.join(os.path.dirname(na), f"_{na_name}")
+            logger.info(f"    Extracting nested: {os.path.basename(na)}")
+            if extract_archive(na, na_dir):
+                try:
+                    os.remove(na)  # remove the nested archive after successful extraction
+                except OSError:
+                    pass
+
     # Step 2: Categorize contents
     files = categorize_files(extract_dir)
     logger.info(f"  Found: {len(files['images'])} images, {len(files['models'])} 3D models, "

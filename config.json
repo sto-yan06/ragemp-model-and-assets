@@ -8,12 +8,14 @@
   "scraper": {
     "sources": [
       {
-        "name": "gta5mods_vehicles",
-        "url": "https://www.gta5-mods.com/vehicles?sort=date",
+        "name": "gta5mods_lore_friendly",
+        "url": "https://www.gta5-mods.com/vehicles/tags/lore-friendly",
         "type": "vehicles",
         "free_only": true,
-        "max_per_run": 10,
-        "require_dlc_rpf": true
+        "max_per_run": 1500,
+        "require_dlc_rpf": true,
+        "paginate": true,
+        "max_pages": 66
       }
     ],
     "download_dir": "downloads",
@@ -26,13 +28,6 @@
     "input_dir": "downloads",
     "output_dir": "assets",
     "supported_extensions": [".yft", ".ytd", ".ydr", ".rpf", ".meta", ".xml"]
-  },
-  "external_tools": {
-    "blender_path": "C:/Program Files/Blender Foundation/Blender 4.0/blender.exe",
-    "gimp_path": "C:/Program Files/GIMP 2/bin/gimp-2.10.exe",
-    "paintnet_path": "C:/Program Files/paint.net/paintdotnet.exe",
-    "openiv_path": "C:/Program Files/OpenIV/OpenIV.exe",
-    "codewalker_path": "C:/Tools/CodeWalker/CodeWalker.exe"
   },
   "converter": {
     "codewalker_path": "C:/Tools/CodeWalker",

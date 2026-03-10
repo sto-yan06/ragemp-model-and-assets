@@ -1,68 +1,99 @@
-# RageMP Vehicle Workshop
+# RageMP Lore-Friendly Vehicle Workshop
 
-Web dashboard for downloading, previewing, editing handling, and repacking GTA V addon vehicles (`dlc.rpf`) for RageMP servers.
+All-in-one tool for downloading **lore-friendly** GTA V addon vehicles from [gta5-mods.com](https://www.gta5-mods.com/vehicles/tags/lore-friendly), previewing them in-browser, editing handling parameters, and repacking into `dlc.rpf` for RageMP servers.
 
-**Download → Preview → Edit Handling → Edit Textures (external) → Repack → Deploy**
+```
+Scrape → Download → Extract → Preview → Edit Handling → Repack → Deploy
+```
 
 ---
 
 ## Quick Start
 
-### 1. Prerequisites
+### Prerequisites
 
-Make sure you have these installed:
+| Software | Version | Download |
+|----------|---------|----------|
+| **Node.js** | 18+ | https://nodejs.org/ |
+| **Python** | 3.9+ | https://python.org/ |
+| **7-Zip** | Any | https://7-zip.org/ *(for .rar/.7z archives)* |
 
-| Software | Required | Download |
-|----------|----------|----------|
-| **Node.js** 18+ | Yes | https://nodejs.org/ |
-| **Python** 3.9+ | Yes | https://python.org/ |
-| **Blender** 3.0+ | For 3D editing | https://blender.org/ |
-| **GIMP** or **Paint.NET** | For texture editing | https://gimp.org/ or https://getpaint.net/ |
-| **OpenIV** | For RPF inspection | https://openiv.com/ |
-| **CodeWalker** | For asset extraction | https://codewalker.net/ |
+No external tools needed (no Blender, no GIMP, no OpenIV, no CodeWalker).
 
-### 2. Install
+### Install
 
-```bash
-# Clone the repo
-git clone <repo-url>
-cd "ragemp model and assets"
-
-# Install Node.js dependencies
-npm install
-
-# Install Python dependencies
-pip install -r requirements.txt
-```
-
-Or run the setup script (Windows):
+**Option A — Setup script (Windows):**
 ```powershell
 .\setup.bat
 ```
 
-### 3. Configure External Tools
+**Option B — Manual:**
+```bash
+git clone <repo-url>
+cd "ragemp model and assets"
 
-Edit **`config.json`** → `external_tools` section with your actual install paths:
-
-```json
-"external_tools": {
-    "blender_path": "C:/Program Files/Blender Foundation/Blender 4.0/blender.exe",
-    "gimp_path": "C:/Program Files/GIMP 2/bin/gimp-2.10.exe",
-    "paintnet_path": "C:/Program Files/paint.net/paintdotnet.exe",
-    "openiv_path": "C:/Program Files/OpenIV/OpenIV.exe",
-    "codewalker_path": "C:/Tools/CodeWalker/CodeWalker.exe"
-}
+npm install
+pip install -r requirements.txt
 ```
 
-> **Tip:** Right-click the `.exe` of each program → Properties → copy the path, then paste it in. Use forward slashes `/`.
-
-### 4. Start the Dashboard
+### Start
 
 ```bash
 npm run preview
 ```
 
-Then open **http://127.0.0.1:3000** in your browser.
+Open **http://127.0.0.1:3000** in your browser.
+
+---
+
+## How It Works
+
+### 1. Scrape Lore-Friendly Vehicles
+
+Click **"Scrape Lore-Friendly"** in the dashboard toolbar. Set the count (default 20, max 1500).
+
+The scraper:
+- Crawls all **66 pages** of https://www.gta5-mods.com/vehicles/tags/lore-friendly
+- Filters for **Add-On** vehicles only (they have `dlc.rpf` files)
+- Skips premium/paid content automatically
+- Downloads archives with metadata, thumbnails, and screenshots
+- Handles the gta5-mods two-step download (interstitial → CDN)
+
+Or run from the command line:
+```bash
+python scraper/scrape_assets.py --category vehicles --count 50
+```
+
+### 2. Extract & Preview
+
+Click **"Extract All"** or extract individual vehicles from their detail modal.
+
+Extraction handles:
+- ZIP, RAR, and 7z archives
+- **Nested archives** (e.g. `replace.zip` inside the main download)
+- RPF unpacking (textures, models, handling.meta)
+- Automatic texture conversion (DDS → PNG for preview)
+- 3D model conversion (YFT → GLB for in-browser preview)
+
+### 3. Edit Handling
+
+Open any vehicle → **Handling** tab:
+- All key `handling.meta` parameters with sliders
+- Categories: Performance, Braking, Traction, Suspension, Drag & Weight, Steering, Drivetrain
+- **Presets**: Stock Sedan, Sports Car, Supercar, Muscle Car, Drift, SUV/Truck, Motorcycle
+- Original values are loaded directly from the vehicle's `dlc.rpf`
+- **Save** stores your changes, **Pack into dlc.rpf** writes them into the archive
+- **Export handling.meta** downloads the XML file
+- **Export RageMP JS** generates a server-side script for runtime handling override
+
+### 4. Repack & Deploy
+
+Open any vehicle → **Export** tab:
+- See all tracked changes (handling modifications, texture edits)
+- Click **"Repack into DLC.RPF"** to create the final file
+- The repacker preserves the original RPF file size (critical for client compatibility)
+- A backup `.rpf.bak` is created automatically before modification
+- Find your repacked files in `new_dlc_exported/<vehicle_name>/dlc.rpf`
 
 ---
 
@@ -70,88 +101,97 @@ Then open **http://127.0.0.1:3000** in your browser.
 
 ```
 ragemp-vehicle-workshop/
-├── config.json                  # Tool paths + pipeline settings
-├── package.json                 # Node.js dependencies
-├── requirements.txt             # Python dependencies
-├── setup.bat                    # One-click Windows setup
+├── config.json              # Scraper settings, paths, pipeline config
+├── package.json             # Node.js dependencies
+├── requirements.txt         # Python dependencies
+├── setup.bat                # One-click Windows setup
+├── run.py                   # CLI pipeline runner
 │
-├── preview/                     # Web dashboard
-│   ├── server.js                # HTTP server + API endpoints
-│   ├── index.html               # Dashboard UI (single-page app)
-│   └── glb_processor.js         # 3D model processing (texture embedding)
+├── preview/                 # Web dashboard
+│   ├── server.js            # HTTP API server
+│   ├── index.html           # Single-page dashboard UI
+│   └── glb_processor.js     # GLB texture embedding & rotation
 │
-├── processor/                   # Asset processing
-│   ├── extract_preview.py       # Extract RPF contents for preview
-│   ├── rpf_repacker.py          # Repack modified vehicles into dlc.rpf
-│   └── change_tracker.py        # Track modifications per vehicle
+├── processor/               # Asset processing pipeline
+│   ├── extract_preview.py   # Archive extraction + RPF unpacking
+│   ├── rpf_repacker.py      # Repack modified handling into dlc.rpf
+│   ├── rpf_packer.py        # Low-level RPF packing
+│   ├── change_tracker.py    # Track modifications per vehicle
+│   └── logo_remover.py      # Auto logo removal from textures
 │
-├── gta_converter/               # GTA V format tools
-│   └── rpf_parser.py            # Read/write RPF archives
+├── gta_converter/           # GTA V format parsers
+│   ├── rpf_parser.py        # RPF7 archive read/write
+│   ├── ytd_parser.py        # YTD texture dictionary parser
+│   └── yft_parser.py        # YFT model parser → OBJ/GLB
 │
-├── scraper/                     # Vehicle scraper
-│   └── scrape_assets.py         # Download addon vehicles from gta5-mods
+├── scraper/                 # Lore-friendly vehicle scraper
+│   ├── scrape_assets.py     # Multi-page scraper for gta5-mods.com
+│   └── download_history.json # Tracks what's been downloaded
 │
-├── downloads/                   # [Generated] Downloaded vehicles
-│   ├── _metadata/               # Asset index
-│   └── _previews/               # Extracted previews per vehicle
+├── downloads/               # [Generated] Downloaded vehicles
+│   ├── vehicles/            # Raw downloaded archives
+│   ├── _metadata/           # Asset index (asset_index.json)
+│   └── _previews/           # Extracted previews per vehicle
+│       └── <Vehicle_Name>/
+│           ├── extracted/   # Unpacked archive contents
+│           ├── textures/    # Converted textures (PNG)
+│           ├── models/      # Converted 3D models (GLB)
+│           └── original/    # Preserved original dlc.rpf
 │
-└── new_dlc_exported/            # [Generated] Repacked vehicles ready to use
-    ├── Vehicle_Name_A/
-    │   └── dlc.rpf              # Latest repacked RPF
-    └── Vehicle_Name_B/
-        └── dlc.rpf
+└── new_dlc_exported/        # [Generated] Repacked vehicles
+    └── <Vehicle_Name>/
+        └── dlc.rpf          # ← Drop into your RageMP server
 ```
-
----
-
-## Workflow
-
-### For Each Vehicle:
-
-1. **Download** — Scrape from gta5-mods or drop a `.zip` manually into `downloads/`
-2. **Extract** — Dashboard auto-extracts RPF contents (models, textures, handling)
-3. **Preview** — View 3D model, screenshots, textures in the browser
-4. **Edit Handling** — Use the visual handling editor (sliders + presets)
-5. **Edit Textures** — Click "Open in GIMP" to remove logos, rebrand, etc.
-6. **Import Back** — Go to Export tab, paste the path to your edited file, click Import
-7. **Repack** — Click "Repack into DLC.RPF" to create the final file
-8. **Deploy** — Find your repacked `dlc.rpf` in `new_dlc_exported/<vehicle_name>/`
-
-### 3D Preview Controls:
-- **Drag** to rotate, **scroll** to zoom
-- **Flip** button cycles through orientations if the model looks upside down
-- **Embed Textures** applies extracted textures to the 3D model
-- **Open in Blender** for advanced editing
 
 ---
 
 ## Dashboard Tabs
 
-| Tab | What It Does |
+| Tab | Description |
 |-----|-------------|
-| **Screenshots** | View mod screenshots from gta5-mods |
-| **Contents** | Browse all files inside the archive |
-| **Textures** | View/edit textures, open in GIMP/Paint.NET |
-| **3D Preview** | Interactive 3D model viewer |
-| **Handling** | Visual handling.meta editor with presets |
-| **Export** | Import modified files, repack into dlc.rpf |
+| **Screenshots** | View mod screenshots from gta5-mods.com |
+| **Contents** | Browse all files inside the archive (with nested ZIP support) |
+| **Textures** | View extracted textures; click to quick-edit with built-in canvas editor |
+| **3D Preview** | Interactive 3D model viewer (rotate, zoom, flip orientation) |
+| **Handling** | Visual handling.meta editor — sliders, presets, save, pack, export |
+| **Export** | Change tracker, repack history, one-click RPF repack |
 
 ---
 
-## Where Are My Exported Cars?
+## Configuration
 
-After repacking, find your ready-to-use `dlc.rpf` files in:
+Edit `config.json` to adjust:
 
+```jsonc
+{
+  "scraper": {
+    "sources": [{
+      "url": "https://www.gta5-mods.com/vehicles/tags/lore-friendly",
+      "max_per_run": 1500,    // max vehicles per scrape run
+      "max_pages": 66         // pages to crawl
+    }],
+    "delay_between_requests_seconds": 5  // be nice to the server
+  },
+  "preview": {
+    "port": 3000              // dashboard port
+  }
+}
 ```
-new_dlc_exported/
-├── 2023_BMW_M4_CSL_Add-On_Extras/
-│   └── dlc.rpf          ← drop this into your RageMP server
-├── 2020_Kawasaki_Z_H2/
-│   └── dlc.rpf
-└── ...
-```
 
-Each vehicle gets its own subfolder. The `dlc.rpf` is always the latest repack.
+---
+
+## CLI Usage
+
+```bash
+# Scrape 50 lore-friendly vehicles
+python scraper/scrape_assets.py --category vehicles --count 50
+
+# Start the dashboard
+npm run preview
+
+# Run the full pipeline (scrape + extract)
+python run.py --category vehicles --count 20 --preview
+```
 
 ---
 
@@ -159,17 +199,19 @@ Each vehicle gets its own subfolder. The `dlc.rpf` is always the latest repack.
 
 | Problem | Solution |
 |---------|----------|
-| "Tool not found" when clicking Open in Blender/GIMP | Update paths in `config.json` → `external_tools` |
-| 3D model looks upside down | Click the **Flip** button to cycle orientations |
-| Textures not showing on 3D model | Click **Embed Textures** button |
-| "Original dlc.rpf not found" on export | Re-extract the asset from the dashboard |
-| Server won't start | Check if port 3000 is in use: `netstat -ano | findstr :3000` |
+| 3D model looks upside down | Click **Flip** button to cycle orientations |
+| "Original dlc.rpf not found" on Export tab | Re-extract the asset first |
+| RAR files fail to extract | Install [7-Zip](https://7-zip.org/) (must be in `C:\Program Files\7-Zip\`) |
+| Nested ZIPs not extracted | Re-extract — the tool now handles nested archives automatically |
+| Server won't start | Check port: `netstat -ano \| findstr :3000` |
+| Scraper returns no results | Check your internet connection; the site may be rate-limiting you |
 
 ---
 
 ## Legal Notice
 
 This tool works with **free, publicly available** addon vehicles only:
-- The scraper skips premium/paid content automatically
-- Rate limiting and robots.txt compliance are built-in
-- Always verify licensing of downloaded assets before server deployment
+- The scraper **skips premium/paid content** automatically
+- Rate limiting (5s between requests) and robots.txt compliance are built-in
+- Downloaded vehicles remain property of their original authors
+- Always verify licensing before deploying assets to a public server

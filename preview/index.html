@@ -613,9 +613,9 @@
 
 <div class="pipeline-bar">
     <span class="pipe-label">Download</span>
-    <input type="number" class="pipe-count-input" id="scrapeCount" value="5" min="1" max="50" title="Number of addon vehicles to download">
+    <input type="number" class="pipe-count-input" id="scrapeCount" value="20" min="1" max="1500" title="Number of lore-friendly vehicles to download">
     <button class="pipe-btn" onclick="runScrape('vehicles')" id="scrapeVehicles">
-        <span class="pipe-icon">&#128663;</span> Scrape Addon Vehicles
+        <span class="pipe-icon">&#128663;</span> Scrape Lore-Friendly
     </button>
     <div class="pipe-sep"></div>
     <span class="pipe-label">Process</span>
@@ -963,7 +963,8 @@ function openModal(fi) {
         </div>`;
 
     document.getElementById("modalOverlay").classList.add("visible");
-    if (asset.has_preview && asset.safe_name) loadPreviewData(asset.safe_name);
+    // Always try to load preview data — the preview dir may exist even if has_preview wasn't set
+    if (asset.safe_name) loadPreviewData(asset.safe_name);
 }
 
 function switchTab(id, btn) {
@@ -988,7 +989,7 @@ function closeModal(e) {
 async function extractPreview() {
     if (!currentModalAsset?.safe_name) return;
     const sn = currentModalAsset.safe_name;
-    document.querySelectorAll('#extractBtn, #v3dExtBtn').forEach(b => {
+    document.querySelectorAll('#extractBtn, #v3dExtBtn, .extract-prompt .btn-action').forEach(b => {
         b.disabled = true; b.innerHTML = '<span class="spinner-sm"></span> Extracting...';
     });
     try {
@@ -1000,12 +1001,14 @@ async function extractPreview() {
         if (!r.ok) throw new Error(res.error || 'Failed');
         showToast('Archive extracted!', 'success');
         currentModalAsset.has_preview = true;
-        await loadPreviewData(sn);
-        loadAssets();
+        try { await loadPreviewData(sn); } catch (e) { console.error('loadPreviewData error:', e); }
+        try { loadAssets(); } catch (e) { console.error('loadAssets error:', e); }
     } catch (err) {
         showToast('Error: ' + err.message, 'error');
-        document.querySelectorAll('#extractBtn, #v3dExtBtn').forEach(b => {
-            b.disabled = false; b.innerHTML = '\u{1F504} Extract & Analyze';
+    } finally {
+        // Always reset buttons in case tabs didn't re-render
+        document.querySelectorAll('#extractBtn, #v3dExtBtn, .extract-prompt .btn-action').forEach(b => {
+            if (b.disabled) { b.disabled = false; b.innerHTML = '\u{1F504} Extract & Analyze'; }
         });
     }
 }
@@ -1070,11 +1073,9 @@ function renderTexturesTab(d) {
     }
     const sn = d.safe_name;
     let h = `<div class="texture-actions">
-        <button class="btn-action" onclick="launchTool('gimp','${sn}')" title="Open texture in GIMP">\u{1F58C}\u{FE0F} Open in GIMP</button>
-        <button class="btn-action" onclick="launchTool('paintnet','${sn}')" title="Open texture in Paint.NET">\u{1F3A8} Open in Paint.NET</button>
-        <button class="btn-action" onclick="openTexFolder('${sn}')" title="Open textures folder">\u{1F4C2} Open Folder</button>
+        <span style="font-size:13px;font-weight:600">\u{1F3A8} ${d.textures.length} Texture(s)</span>
         <span style="flex:1"></span>
-        <span style="font-size:12px;color:var(--text-dim)">${d.textures.length} texture(s) — click to quick-edit, or use external tools</span>
+        <span style="font-size:12px;color:var(--text-dim)">Click to quick-edit</span>
     </div><div class="textures-grid">`;
     for (const t of d.textures) {
         const url = `/file/downloads/_previews/${sn}/${t.preview}`;
@@ -1086,9 +1087,6 @@ function renderTexturesTab(d) {
             <div class="tex-info">
                 <span class="tex-name" title="${t.original||t.name}">${t.name}</span>
                 <span class="file-tree-ext image">${t.format}</span>
-                <button class="btn-action" style="font-size:11px;padding:2px 6px;margin-left:auto"
-                    onclick="event.stopPropagation();launchTool('gimp','${sn}','${eName}')"
-                    title="Open this texture in GIMP">\u{1F58C}\u{FE0F}</button>
             </div></div>`;
     }
     h += '</div>';
@@ -1337,8 +1335,6 @@ function render3DTab(d) {
                 <button onclick="resetMVCamera()">Reset</button>
                 <button onclick="toggleMVRotation()">Auto-Rotate</button>
                 <button onclick="flipModelOrientation()" id="flipBtn" title="Cycle through orientations if model looks wrong">Flip</button>
-                <button onclick="embedTexturesUI()" id="embedTexBtn">Embed Textures</button>
-                <button onclick="launchTool('blender','${sn}')" style="background:var(--accent)">Open in Blender</button>
                 ${d.models.length > 1 ? d.models.map((mod,i) => 
                     `<button onclick="switchModel(${i})" class="${i===0?'active':''}">${mod.name}</button>`
                 ).join('') : ''}
@@ -1351,13 +1347,6 @@ function render3DTab(d) {
                 console.log('[3D] Textured GLB failed, falling back to original');
                 mv.src = fallbackUrl;
             });
-            // Auto-embed textures if no textured version exists yet
-            if (!m.textured_path) {
-                mv.addEventListener('load', () => {
-                    console.log('[3D] No textured GLB found, auto-embedding textures...');
-                    embedTexturesUI();
-                }, { once: true });
-            }
         }
     } else {
         let msg;
@@ -1374,11 +1363,11 @@ function render3DTab(d) {
 
 let modelOrientationIdx = 0;
 const MODEL_ORIENTATIONS = [
-    '0deg 0deg 0deg',       // Default (already Y-up)
-    '270deg 0deg 0deg',     // Z-up -> Y-up (rotate -90 around X)
+    '270deg 0deg 0deg',     // Z-up -> Y-up (GTA V default)
+    '270deg 0deg 180deg',   // Z-up + 180 yaw (facing other way)
+    '0deg 0deg 0deg',       // No rotation (already Y-up)
     '90deg 0deg 0deg',      // Flip Z-up (rotate +90 around X)
     '180deg 0deg 0deg',     // Upside down fix
-    '270deg 0deg 180deg',   // Z-up + 180 yaw
     '90deg 0deg 180deg',    // Flipped + 180 yaw
 ];
 
@@ -1394,7 +1383,7 @@ function flipModelOrientation() {
 function resetMVCamera() {
     const mv = document.getElementById('modelViewer');
     if (!mv) return;
-    mv.cameraOrbit = '30deg 80deg 105%';
+    mv.cameraOrbit = '30deg 75deg 105%';
     modelOrientationIdx = 0;
     mv.orientation = MODEL_ORIENTATIONS[0];
     const btn = document.getElementById('flipBtn');
@@ -1420,32 +1409,6 @@ function switchModel(idx) {
     });
 }
 
-async function embedTexturesUI() {
-    if (!currentPreviewData?.safe_name) return;
-    const sn = currentPreviewData.safe_name;
-    showToast('Embedding textures into GLB...', '');
-    try {
-        const r = await fetch('/api/pipeline/embed-textures', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({ safeName: sn })
-        });
-        const result = await r.json();
-        if (!r.ok) throw new Error(result.error || 'Failed');
-        showToast(`Embedded textures: ${result.processed} model(s) processed`, 'success');
-        // Reload preview data and refresh viewer
-        await loadPreviewData(sn);
-        const mv = document.getElementById('modelViewer');
-        if (mv && currentPreviewData?.models?.[0]) {
-            const m = currentPreviewData.models[0];
-            const texturedPath = m.textured_path || m.path;
-            mv.src = `/file/downloads/_previews/${sn}/${texturedPath}`;
-        }
-    } catch (e) {
-        showToast('Embed error: ' + e.message, 'error');
-    }
-}
-
 async function init3DViewer() {
     // model-viewer handles initialization automatically via the custom element
     // This function is kept for tab-switching compatibility
@@ -1465,14 +1428,10 @@ async function renderExportTab() {
         const r = await fetch(`/api/changes?safeName=${encodeURIComponent(sn)}`);
         const data = await r.json();
 
-        // Also fetch workspace info for import section
-        const wsR = await fetch(`/api/workspace?safeName=${encodeURIComponent(sn)}`);
-        const wsData = await wsR.json();
-
         let changesHtml = '';
         for (const c of data.changes) {
-            const icon = c.type === 'handling' ? '\u{2699}\u{FE0F}' : c.type === 'imported' ? '\u{1F4E5}' : '\u{1F3A8}';
-            const label = c.type === 'handling' ? 'Handling' : c.type === 'imported' ? c.file_name : 'Texture: ' + (c.texture_name||'');
+            const icon = c.type === 'handling' ? '\u{2699}\u{FE0F}' : '\u{1F3A8}';
+            const label = c.type === 'handling' ? 'Handling' : 'Texture: ' + (c.texture_name||'');
             const time = new Date(c.timestamp).toLocaleString();
             changesHtml += `<div class="modal-row">
                 <span class="label">${icon} ${label}</span>
@@ -1496,46 +1455,14 @@ async function renderExportTab() {
             }
         }
 
-        // Imported files list
-        let importedHtml = '';
-        if (wsData.imported_files?.length) {
-            importedHtml = '<div style="margin-top:8px;max-height:120px;overflow-y:auto">';
-            for (const f of wsData.imported_files) {
-                const sizeKb = (f.size / 1024).toFixed(1);
-                importedHtml += `<div class="modal-row" style="font-size:12px">
-                    <span class="label">\u{1F4C4} ${f.name}</span>
-                    <span class="value">${sizeKb} KB</span>
-                </div>`;
-            }
-            importedHtml += '</div>';
-        }
-
         area.innerHTML = `<div style="padding:24px">
-            <h3 style="margin-bottom:16px">\u{1F4E6} Export & Import</h3>
+            <h3 style="margin-bottom:16px">\u{1F4E6} Export & Repack</h3>
             <div style="margin-bottom:16px;font-size:13px">${rpfStatus}</div>
 
             <div style="display:flex;gap:12px;margin-bottom:20px">
                 <div class="stat-card" style="flex:1"><div class="stat-value">${data.handling_changes}</div><div class="stat-label">Handling</div></div>
                 <div class="stat-card" style="flex:1"><div class="stat-value">${data.texture_changes}</div><div class="stat-label">Textures</div></div>
-                <div class="stat-card" style="flex:1"><div class="stat-value">${(data.changes||[]).filter(c=>c.type==='imported').length}</div><div class="stat-label">Imported</div></div>
                 <div class="stat-card" style="flex:1"><div class="stat-value">${data.total}</div><div class="stat-label">Total</div></div>
-            </div>
-
-            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px">
-                <h4 style="margin-bottom:12px">\u{1F4E5} Import Modified Files</h4>
-                <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px">
-                    Edit textures in GIMP/Paint.NET, models in Blender, then paste the full path(s) here to import back. One path per line.
-                </p>
-                <textarea id="importPathInput" rows="3" placeholder="C:\\path\\to\\modified_texture.dds&#10;C:\\path\\to\\another_file.ytd"
-                    style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px;border-radius:6px;font-family:monospace;font-size:12px;resize:vertical"></textarea>
-                <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
-                    <button class="btn-action" id="importBtn" onclick="importFiles()">\u{1F4E5} Import</button>
-                    <button class="btn-action" onclick="launchTool('openiv','${sn}')">\u{1F4C2} Open in OpenIV</button>
-                    <button class="btn-action" onclick="launchTool('blender','${sn}')">\u{1F528} Open in Blender</button>
-                    <span style="flex:1"></span>
-                    <span style="font-size:11px;color:var(--text-dim)">${wsData.imported_files?.length || 0} file(s) imported</span>
-                </div>
-                ${importedHtml}
             </div>
 
             ${data.total > 0 ? `
@@ -1549,7 +1476,7 @@ async function renderExportTab() {
             ` : `
                 <div class="viewer-placeholder" style="height:auto;padding:24px">
                     <h3>No Changes Yet</h3>
-                    <p style="font-size:13px">Modify <strong>handling.meta</strong>, edit textures externally, or import modified files above.<br>Then repack into a new <code>dlc.rpf</code>.</p>
+                    <p style="font-size:13px">Modify <strong>handling.meta</strong> in the Handling tab, then repack into a new <code>dlc.rpf</code>.</p>
                 </div>
             `}
             ${historyHtml}
@@ -1586,59 +1513,6 @@ async function repackVehicle() {
     }
 }
 
-/* ── External Tools & Import ── */
-async function launchTool(tool, safeName, fileName) {
-    try {
-        const r = await fetch('/api/tools/launch', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ tool, safeName, fileType: fileName || null })
-        });
-        const result = await r.json();
-        if (!r.ok) throw new Error(result.error);
-        showToast(`Launched ${tool}${result.file ? ': ' + result.file.split(/[/\\]/).pop() : ''}`, 'success');
-    } catch (e) {
-        showToast(`${tool}: ${e.message}`, 'error');
-    }
-}
-
-async function openTexFolder(safeName) {
-    try {
-        const ws = await (await fetch(`/api/workspace?safeName=${encodeURIComponent(safeName)}`)).json();
-        // Open Explorer via tool launch (we handle _explorer specially server-side is not needed,
-        // just show the path so user can navigate)
-        showToast(`Textures folder: ${ws.preview_dir}\\textures`, 'success');
-    } catch (e) {
-        showToast('Error: ' + e.message, 'error');
-    }
-}
-
-async function importFiles() {
-    if (!currentModalAsset?.safe_name) return;
-    const sn = currentModalAsset.safe_name;
-    const input = document.getElementById('importPathInput');
-    const rawPaths = input?.value?.trim();
-    if (!rawPaths) { showToast('Enter file path(s) to import', 'error'); return; }
-
-    const paths = rawPaths.split('\\n').map(p => p.trim()).filter(Boolean);
-    const btn = document.getElementById('importBtn');
-    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-sm"></span> Importing...'; }
-
-    try {
-        const r = await fetch('/api/import-files', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
-            body: JSON.stringify({ safeName: sn, sourcePaths: paths })
-        });
-        const result = await r.json();
-        if (!r.ok) throw new Error(result.error);
-        showToast(`Imported ${result.imported} file(s)${result.errors.length ? ', ' + result.errors.length + ' error(s)' : ''}`, 'success');
-        if (btn) { btn.disabled = false; btn.innerHTML = '\u{1F4E5} Import'; }
-        input.value = '';
-        renderExportTab();
-    } catch (e) {
-        showToast('Import error: ' + e.message, 'error');
-        if (btn) { btn.disabled = false; btn.innerHTML = '\u{1F4E5} Import'; }
-    }
-}
 
 /* ── Handling Editor ── */
 const HANDLING_FIELDS = {

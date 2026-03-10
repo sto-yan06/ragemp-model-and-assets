@@ -263,37 +263,9 @@ def extract_asset_info(asset_soup, page_url):
     return info
 
 
-def scrape_gta5mods(session, source_config, config, logger, history, asset_index):
-    """Scrape free assets from gta5-mods.com with metadata + thumbnails."""
-    url = source_config["url"]
-    asset_type = source_config["type"]
-    max_items = source_config["max_per_run"]
-    delay = config["scraper"]["delay_between_requests_seconds"]
-    download_dir = os.path.join(ROOT_DIR, config["scraper"]["download_dir"], asset_type)
-    os.makedirs(download_dir, exist_ok=True)
-
-    logger.info(f"Scraping {url} for free {asset_type} (max: {max_items})...")
-
-    try:
-        resp = session.get(url, timeout=30)
-        resp.raise_for_status()
-    except requests.RequestException as e:
-        logger.error(f"Failed to fetch {url}: {e}")
-        return []
-
-    soup = BeautifulSoup(resp.text, "html.parser")
-    downloaded_files = []
-    count = 0
-
-    # Determine the URL category path segment (e.g. "vehicles", "player")
-    parsed_source = urlparse(url)
-    source_path_parts = [p for p in parsed_source.path.strip("/").split("/") if p]
-    category_segment = source_path_parts[0] if source_path_parts else asset_type
-
-    # For tag-filtered pages like /player/tags/clothing, category is still "player"
-    is_tag_filtered = len(source_path_parts) >= 3 and source_path_parts[1] == "tags"
-
-    # Non-mod path segments to skip (navigation, tags, sorting, pagination)
+def _extract_mod_links_from_page(soup, base_url, category_segment):
+    """Extract individual mod links (/<category>/<slug>) from a listing page."""
+    parsed_source = urlparse(base_url)
     skip_segments = {
         "tags", "date", "users", "most-liked", "most-downloaded",
         "highest-rated", "featured", "leaderboard", "categories",
@@ -301,85 +273,104 @@ def scrape_gta5mods(session, source_config, config, logger, history, asset_index
         "contact", "privacy", "terms", "dark_mode", "adult_filter",
         "all",
     }
-
-    # Known top-level category paths (not individual mods)
-    nav_paths = {
-        "/tools", "/vehicles", "/paintjobs", "/weapons", "/scripts",
-        "/player", "/maps", "/misc", "/all",
-    }
-
-    # Find individual mod links from the listing page
-    asset_links = []
-    seen_hrefs = set()
+    valid_categories = {"vehicles", "player", "weapons", "maps", "misc", "tools", "paintjobs", "scripts"}
+    links = []
+    seen = set()
 
     for a in soup.select("a[href]"):
         href = a.get("href", "").split("?")[0].split("#")[0].rstrip("/")
         if not href:
             continue
-
-        # Build absolute URL to parse
-        abs_url = urljoin(url, href)
+        abs_url = urljoin(base_url, href)
         parsed = urlparse(abs_url)
-
-        # Only links on the same domain
         if parsed.hostname and parsed.hostname != parsed_source.hostname:
             continue
-
         path_parts = [p for p in parsed.path.strip("/").split("/") if p]
-
-        # Must be exactly /<category>/<mod-slug> (2 segments)
         if len(path_parts) != 2:
             continue
-
         cat_part, slug_part = path_parts
-
-        # First segment should be the category we're scraping (or related)
-        valid_categories = {"vehicles", "player", "weapons", "maps", "misc", "tools", "paintjobs", "scripts"}
-        if cat_part not in valid_categories:
+        if cat_part not in valid_categories or cat_part != category_segment:
             continue
-
-        # Must match the source category (vehicles page -> only /vehicles/ links)
-        if cat_part != category_segment:
+        if slug_part in skip_segments or slug_part.isdigit():
             continue
-
-        # Skip if slug is a known non-mod segment
-        if slug_part in skip_segments:
-            continue
-
-        # Skip numeric slugs (pagination like /vehicles/date/2 won't match
-        # since that's 3 segments, but defensive check)
-        if slug_part.isdigit():
-            continue
-
-        # Normalize the href for dedup
         normalized = parsed.path.rstrip("/")
-        if normalized in seen_hrefs:
+        if normalized in seen:
             continue
-        seen_hrefs.add(normalized)
+        seen.add(normalized)
+        links.append(abs_url)
+    return links
 
-        asset_links.append(a)
 
-    logger.info(f"Found {len(asset_links)} individual mod links")
+def scrape_gta5mods(session, source_config, config, logger, history, asset_index):
+    """Scrape free assets from gta5-mods.com with metadata + thumbnails.
+    Supports pagination for tag-filtered pages (e.g. /vehicles/tags/lore-friendly)."""
+    url = source_config["url"]
+    asset_type = source_config["type"]
+    max_items = source_config["max_per_run"]
+    delay = config["scraper"]["delay_between_requests_seconds"]
+    download_dir = os.path.join(ROOT_DIR, config["scraper"]["download_dir"], asset_type)
+    os.makedirs(download_dir, exist_ok=True)
 
-    for link in asset_links:
-        if count >= max_items:
+    # Determine pagination settings
+    paginate = source_config.get("paginate", False)
+    max_pages = source_config.get("max_pages", 1)
+
+    # Determine the URL category path segment
+    parsed_source = urlparse(url)
+    source_path_parts = [p for p in parsed_source.path.strip("/").split("/") if p]
+    category_segment = source_path_parts[0] if source_path_parts else asset_type
+
+    logger.info(f"Scraping {url} for free {asset_type} (max: {max_items}, pages: {max_pages if paginate else 1})...")
+
+    # Phase 1: Collect all mod links from all pages
+    all_mod_urls = []
+    seen_urls = set()
+    pages_to_scrape = max_pages if paginate else 1
+
+    for page_num in range(1, pages_to_scrape + 1):
+        if len(all_mod_urls) >= max_items:
             break
 
-        href = link.get("href", "").split("?")[0].split("#")[0].rstrip("/")
-        full_url = urljoin(url, href)
+        page_url = url if page_num == 1 else f"{url}?page={page_num}"
+        logger.info(f"  Fetching page {page_num}/{pages_to_scrape}... ({len(all_mod_urls)} links so far)")
+
+        try:
+            time.sleep(delay)
+            resp = session.get(page_url, timeout=30)
+            resp.raise_for_status()
+        except requests.RequestException as e:
+            logger.warning(f"  Failed to fetch page {page_num}: {e}")
+            continue
+
+        soup = BeautifulSoup(resp.text, "html.parser")
+        page_links = _extract_mod_links_from_page(soup, page_url, category_segment)
+
+        if not page_links:
+            logger.info(f"  No mod links on page {page_num}, stopping pagination.")
+            break
+
+        new_count = 0
+        for link_url in page_links:
+            if link_url not in seen_urls:
+                seen_urls.add(link_url)
+                all_mod_urls.append(link_url)
+                new_count += 1
+        logger.info(f"  Page {page_num}: {new_count} new links ({len(page_links)} total on page)")
+
+    logger.info(f"Collected {len(all_mod_urls)} unique mod links across {min(page_num, pages_to_scrape)} pages")
+
+    # Phase 2: Visit each mod page and download
+    downloaded_files = []
+    count = 0
+
+    for mod_idx, full_url in enumerate(all_mod_urls):
+        if count >= max_items:
+            break
 
         # Skip if already downloaded
         url_hash = hashlib.md5(full_url.encode()).hexdigest()
         if url_hash in history["downloaded"]:
             logger.debug(f"Already downloaded: {full_url}")
-            continue
-
-        # Check for premium content on the listing
-        parent = link.parent
-        if parent and is_premium_content(parent):
-            logger.info(f"SKIPPED (premium): {full_url}")
-            if url_hash not in history["skipped"]:
-                history["skipped"].append(url_hash)
             continue
 
         # Visit individual asset page
@@ -475,7 +466,7 @@ def scrape_gta5mods(session, source_config, config, logger, history, asset_index
         # Download the file - gta5-mods.com uses a two-step process:
         # 1. Visit the download interstitial page
         # 2. Extract the actual CDN file link (files.gta5-mods.com)
-        logger.info(f"[{count+1}/{max_items}] Downloading: {display_name}")
+        logger.info(f"[{count+1}/{max_items}] ({mod_idx+1}/{len(all_mod_urls)}) Downloading: {display_name}")
         time.sleep(delay)
 
         try:
